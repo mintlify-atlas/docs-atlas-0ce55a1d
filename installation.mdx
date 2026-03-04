@@ -1,0 +1,291 @@
+---
+title: Installation
+description: Detailed installation guide for Exchange Web with prerequisites and troubleshooting
+---
+
+## Prerequisites
+
+Before installing Exchange Web, ensure you have the following tools installed on your system.
+
+### Required
+
+<Card title="Node.js 18 or higher" icon="node-js">
+  Exchange Web requires Node.js version 18 or above.
+
+  Check your Node.js version:
+  ```bash
+  node --version
+  ```
+
+  Download from [nodejs.org](https://nodejs.org/) if needed.
+</Card>
+
+### Package manager
+
+You'll need one of the following package managers:
+
+<CardGroup cols={3}>
+  <Card title="npm" icon="npm">
+    Comes bundled with Node.js
+  </Card>
+  <Card title="Yarn" icon="yarn">
+    Recommended (project uses Yarn 1.22.22)
+  </Card>
+  <Card title="pnpm" icon="box">
+    Fast, disk-efficient alternative
+  </Card>
+</CardGroup>
+
+<Info>
+The project specifies `"packageManager": "yarn@1.22.22"` in package.json, but any package manager will work.
+</Info>
+
+## Installation steps
+
+Follow these steps to install Exchange Web on your local machine.
+
+<Steps>
+  <Step title="Clone the repository">
+    Use git to clone the repository:
+
+    ```bash
+    git clone https://github.com/jogeshwar01/exchange-web.git
+    ```
+
+    Navigate into the project directory:
+
+    ```bash
+    cd exchange-web
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all workspace dependencies from the root:
+
+    <CodeGroup>
+    ```bash npm
+    npm install
+    ```
+
+    ```bash yarn
+    yarn install
+    ```
+
+    ```bash pnpm
+    pnpm install
+    ```
+    </CodeGroup>
+
+    This installs dependencies for all workspaces:
+    - `apps/web` - Main trading application
+    - `packages/ui` - Shared UI components
+    - `packages/eslint-config` - ESLint configuration
+    - `packages/typescript-config` - TypeScript configuration
+
+    <Note>
+    The installation may take a few minutes depending on your internet connection.
+    </Note>
+  </Step>
+
+  <Step title="Verify installation">
+    Check that the installation succeeded by listing the workspace structure:
+
+    ```bash
+    ls -la apps/web
+    ```
+
+    You should see the web app directory with `node_modules`, `src`, and configuration files.
+  </Step>
+</Steps>
+
+## Project structure
+
+Exchange Web uses a monorepo structure managed by Turbo:
+
+```
+exchange-web/
+├── apps/
+│   └── web/              # Main trading application
+│       ├── src/
+│       │   ├── components/   # React components
+│       │   ├── pages/        # Route pages
+│       │   ├── state/        # Context providers
+│       │   └── utils/        # Utilities and helpers
+│       ├── package.json
+│       └── vite.config.ts
+├── packages/
+│   ├── ui/               # Shared UI components
+│   ├── eslint-config/    # Shared ESLint config
+│   └── typescript-config/ # Shared TypeScript config
+├── package.json          # Root workspace config
+└── turbo.json           # Turbo pipeline config
+```
+
+## Environment setup
+
+Exchange Web works out of the box without environment variables for local development.
+
+<Warning>
+If you're connecting to a production exchange backend, you'll need to configure API endpoints in your environment or source code.
+</Warning>
+
+### Optional: Configure backend URL
+
+If you need to point to a specific backend API:
+
+1. Check the API requests in `apps/web/src/utils/requests.ts`
+2. Update the base URLs to match your backend endpoints
+3. Configure WebSocket URLs in `apps/web/src/utils/ws_manager.ts`
+
+## Running the application
+
+Once installed, you can run Exchange Web in development mode:
+
+<CodeGroup>
+```bash npm
+npm run dev
+```
+
+```bash yarn
+yarn dev
+```
+
+```bash pnpm
+pnpm dev
+```
+</CodeGroup>
+
+The application will start at `http://localhost:5173`.
+
+### Build for production
+
+To create a production build:
+
+<CodeGroup>
+```bash npm
+npm run build
+```
+
+```bash yarn
+yarn build
+```
+
+```bash pnpm
+pnpm build
+```
+</CodeGroup>
+
+This runs TypeScript compilation followed by Vite's optimized build process.
+
+### Preview production build
+
+To preview the production build locally:
+
+<CodeGroup>
+```bash npm
+cd apps/web && npm run preview
+```
+
+```bash yarn
+cd apps/web && yarn preview
+```
+
+```bash pnpm
+cd apps/web && pnpm preview
+```
+</CodeGroup>
+
+## Troubleshooting
+
+Common installation issues and their solutions:
+
+### Node version error
+
+<Warning>
+**Error:** "The engine 'node' is incompatible with this module"
+
+**Solution:** Exchange Web requires Node.js 18 or higher. Update your Node.js version:
+
+```bash
+node --version  # Check current version
+```
+
+Download the latest LTS version from [nodejs.org](https://nodejs.org/).
+</Warning>
+
+### Port already in use
+
+<Info>
+**Error:** "Port 5173 is already in use"
+
+**Solution:** Either kill the process using port 5173, or specify a different port:
+
+```bash
+vite --port 3000
+```
+</Info>
+
+### Workspace installation fails
+
+<Tip>
+**Error:** Workspace dependency resolution errors
+
+**Solution:** Try these steps in order:
+
+1. Delete `node_modules` and lock files:
+   ```bash
+   rm -rf node_modules yarn.lock package-lock.json pnpm-lock.yaml
+   ```
+
+2. Clear package manager cache:
+   ```bash
+   # For npm
+   npm cache clean --force
+   
+   # For yarn
+   yarn cache clean
+   
+   # For pnpm
+   pnpm store prune
+   ```
+
+3. Reinstall dependencies:
+   ```bash
+   yarn install  # or npm install / pnpm install
+   ```
+</Tip>
+
+### TypeScript errors on build
+
+<Warning>
+**Error:** Type errors during `npm run build`
+
+**Solution:** Ensure TypeScript is installed and run type checking:
+
+```bash
+cd apps/web
+npx tsc --noEmit
+```
+
+This shows detailed type errors without creating output files.
+</Warning>
+
+## Development tools
+
+Optional but recommended tools for Exchange Web development:
+
+- **VS Code** - Editor with excellent TypeScript support
+- **React DevTools** - Browser extension for debugging React components
+- **Redux DevTools** - For inspecting context state (if you add Redux)
+- **Tailwind CSS IntelliSense** - VS Code extension for Tailwind autocomplete
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart guide" icon="rocket" href="/quickstart">
+    Learn how to run and use Exchange Web
+  </Card>
+  <Card title="Source code" icon="github" href="https://github.com/jogeshwar01/exchange-web">
+    Explore the codebase on GitHub
+  </Card>
+</CardGroup>

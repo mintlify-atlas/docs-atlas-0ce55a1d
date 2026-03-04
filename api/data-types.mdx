@@ -1,0 +1,526 @@
+---
+title: 'Data Types'
+description: 'TypeScript interfaces and data structures used in the API'
+---
+
+## Overview
+
+Exchange Web uses strongly-typed TypeScript interfaces for all API requests and responses. All type definitions can be found in `source/apps/web/src/utils/types.ts`.
+
+---
+
+## Market Data Types
+
+### KLine
+
+Represents a candlestick (OHLCV) data point for a specific time interval.
+
+```typescript
+interface KLine {
+  close: string;
+  end: string;
+  high: string;
+  low: string;
+  open: string;
+  quoteVolume: string;
+  start: string;
+  trades: string;
+  volume: string;
+}
+```
+
+<ParamField path="open" type="string">
+  Opening price at the start of the period
+</ParamField>
+
+<ParamField path="high" type="string">
+  Highest price reached during the period
+</ParamField>
+
+<ParamField path="low" type="string">
+  Lowest price reached during the period
+</ParamField>
+
+<ParamField path="close" type="string">
+  Closing price at the end of the period
+</ParamField>
+
+<ParamField path="volume" type="string">
+  Total volume of base asset traded during the period
+</ParamField>
+
+<ParamField path="quoteVolume" type="string">
+  Total volume of quote asset traded (price × volume)
+</ParamField>
+
+<ParamField path="start" type="string">
+  Start timestamp of the candlestick period
+</ParamField>
+
+<ParamField path="end" type="string">
+  End timestamp of the candlestick period
+</ParamField>
+
+<ParamField path="trades" type="string">
+  Number of individual trades that occurred during this period
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { getKlines } from './utils/requests';
+import { KLine } from './utils/types';
+
+const klines: KLine[] = await getKlines('BTC_USD', '1h', Date.now() - 86400000);
+
+klines.forEach((kline) => {
+  console.log(`Period: ${kline.start} - ${kline.end}`);
+  console.log(`OHLC: ${kline.open}, ${kline.high}, ${kline.low}, ${kline.close}`);
+  console.log(`Volume: ${kline.volume}`);
+});
+```
+
+---
+
+### Trade
+
+Represents a single trade execution on the exchange.
+
+```typescript
+interface Trade {
+  id: number;
+  isBuyerMaker: boolean;
+  price: string;
+  quantity: string;
+  quoteQuantity: string;
+  timestamp: number;
+}
+```
+
+<ParamField path="id" type="number">
+  Unique identifier for the trade
+</ParamField>
+
+<ParamField path="isBuyerMaker" type="boolean">
+  `true` if the buyer placed the maker order (limit order that was on the book first). `false` if the buyer was the taker (market order or aggressive limit order).
+</ParamField>
+
+<ParamField path="price" type="string">
+  Execution price of the trade
+</ParamField>
+
+<ParamField path="quantity" type="string">
+  Amount of base asset traded
+</ParamField>
+
+<ParamField path="quoteQuantity" type="string">
+  Amount of quote asset traded (price × quantity)
+</ParamField>
+
+<ParamField path="timestamp" type="number">
+  Unix timestamp in milliseconds when the trade was executed
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { getTrades } from './utils/requests';
+import { Trade } from './utils/types';
+
+const trades: Trade[] = await getTrades('BTC_USD');
+
+const recentTrade: Trade = trades[0];
+console.log(`Trade #${recentTrade.id}`);
+console.log(`Price: $${recentTrade.price}`);
+console.log(`Amount: ${recentTrade.quantity} BTC`);
+console.log(`Side: ${recentTrade.isBuyerMaker ? 'Sell' : 'Buy'}`);
+console.log(`Time: ${new Date(recentTrade.timestamp).toLocaleString()}`);
+```
+
+<Note>
+  When `isBuyerMaker` is `true`, the trade appears as a "sell" on the tape because the buyer matched against a sell order. When `false`, it appears as a "buy".
+</Note>
+
+---
+
+### Depth
+
+Represents the current order book depth for a market.
+
+```typescript
+interface Depth {
+  bids: [string, string][];
+  asks: [string, string][];
+  lastUpdateId: string;
+}
+```
+
+<ParamField path="bids" type="[string, string][]">
+  Array of bid (buy) orders. Each element is a tuple of `[price, quantity]`.
+</ParamField>
+
+<ParamField path="asks" type="[string, string][]">
+  Array of ask (sell) orders. Each element is a tuple of `[price, quantity]`.
+</ParamField>
+
+<ParamField path="lastUpdateId" type="string">
+  Identifier for the last order book update. Used for synchronization with WebSocket depth updates.
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { getDepth } from './utils/requests';
+import { Depth } from './utils/types';
+
+const depth: Depth = await getDepth('BTC_USD');
+
+// Best bid (highest buy price)
+const bestBid = depth.bids[0];
+console.log(`Best Bid: $${bestBid[0]} (${bestBid[1]} BTC)`);
+
+// Best ask (lowest sell price)
+const bestAsk = depth.asks[0];
+console.log(`Best Ask: $${bestAsk[0]} (${bestAsk[1]} BTC)`);
+
+// Spread
+const spread = parseFloat(bestAsk[0]) - parseFloat(bestBid[0]);
+console.log(`Spread: $${spread}`);
+
+// Total bid volume
+const totalBidVolume = depth.bids.reduce(
+  (sum, [_, quantity]) => sum + parseFloat(quantity),
+  0
+);
+console.log(`Total Bid Volume: ${totalBidVolume} BTC`);
+```
+
+<Note>
+  Bids are typically sorted in descending order (highest price first), while asks are sorted in ascending order (lowest price first).
+</Note>
+
+---
+
+### Ticker
+
+Represents 24-hour statistics for a market.
+
+```typescript
+interface Ticker {
+  firstPrice: string;
+  high: string;
+  lastPrice: string;
+  low: string;
+  priceChange: string;
+  priceChangePercent: string;
+  quoteVolume: string;
+  symbol: string;
+  trades: string;
+  volume: string;
+}
+```
+
+<ParamField path="symbol" type="string">
+  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+</ParamField>
+
+<ParamField path="firstPrice" type="string">
+  Price 24 hours ago (start of the rolling 24-hour window)
+</ParamField>
+
+<ParamField path="lastPrice" type="string">
+  Most recent trade price
+</ParamField>
+
+<ParamField path="high" type="string">
+  Highest price in the last 24 hours
+</ParamField>
+
+<ParamField path="low" type="string">
+  Lowest price in the last 24 hours
+</ParamField>
+
+<ParamField path="priceChange" type="string">
+  Absolute price change: `lastPrice - firstPrice`
+</ParamField>
+
+<ParamField path="priceChangePercent" type="string">
+  Percentage price change: `((lastPrice - firstPrice) / firstPrice) * 100`
+</ParamField>
+
+<ParamField path="volume" type="string">
+  Total volume of base asset traded in 24 hours
+</ParamField>
+
+<ParamField path="quoteVolume" type="string">
+  Total volume of quote asset traded in 24 hours
+</ParamField>
+
+<ParamField path="trades" type="string">
+  Number of trades executed in the last 24 hours
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { getTicker } from './utils/requests';
+import { Ticker } from './utils/types';
+
+const ticker: Ticker = await getTicker('BTC_USD');
+
+console.log(`${ticker.symbol}`);
+console.log(`Price: $${ticker.lastPrice}`);
+console.log(`24h Change: ${ticker.priceChange} (${ticker.priceChangePercent}%)`);
+console.log(`24h High: $${ticker.high}`);
+console.log(`24h Low: $${ticker.low}`);
+console.log(`24h Volume: ${ticker.volume} BTC`);
+console.log(`24h Trades: ${ticker.trades}`);
+
+// Calculate if market is up or down
+const isUp = parseFloat(ticker.priceChange) > 0;
+console.log(`Trend: ${isUp ? '📈 Up' : '📉 Down'}`);
+```
+
+---
+
+## Trading Types
+
+### CreateOrder
+
+Request payload for creating a new order.
+
+```typescript
+interface CreateOrder {
+  market: string;
+  side: string;
+  quantity: number;
+  price: number;
+  userId: string;
+}
+```
+
+<ParamField path="market" type="string">
+  Market symbol to place the order on (e.g., `BTC_USD`)
+</ParamField>
+
+<ParamField path="side" type="string">
+  Order side: `"buy"` or `"sell"`
+</ParamField>
+
+<ParamField path="quantity" type="number">
+  Amount of base asset to buy or sell
+</ParamField>
+
+<ParamField path="price" type="number">
+  Limit price for the order
+</ParamField>
+
+<ParamField path="userId" type="string">
+  User identifier for authentication (obtained from `createUser()`)
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { createOrder, createUser } from './utils/requests';
+import { CreateOrder, UserId } from './utils/types';
+
+// First, create a user if you don't have one
+const userResponse: UserId = await createUser();
+const userId = userResponse.user_id;
+
+// Create a buy order
+const buyOrder: CreateOrder = {
+  market: 'BTC_USD',
+  side: 'buy',
+  quantity: 0.5,
+  price: 50000,
+  userId: userId
+};
+
+const orderId: string = await createOrder(buyOrder);
+console.log(`Order created: ${orderId}`);
+
+// Create a sell order
+const sellOrder: CreateOrder = {
+  market: 'BTC_USD',
+  side: 'sell',
+  quantity: 0.25,
+  price: 51000,
+  userId: userId
+};
+
+const sellOrderId: string = await createOrder(sellOrder);
+console.log(`Sell order created: ${sellOrderId}`);
+```
+
+<Note>
+  All orders are limit orders. You must specify both quantity and price.
+</Note>
+
+---
+
+## User Management Types
+
+### UserId
+
+Response from user creation endpoint.
+
+```typescript
+interface UserId {
+  status: string;
+  user_id: string;
+}
+```
+
+<ParamField path="status" type="string">
+  Status of the user creation request (e.g., `"success"`)
+</ParamField>
+
+<ParamField path="user_id" type="string">
+  Unique identifier assigned to the newly created user
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { createUser } from './utils/requests';
+import { UserId } from './utils/types';
+
+const userResponse: UserId = await createUser();
+
+if (userResponse.status === 'success') {
+  // Store the user_id for future use
+  localStorage.setItem('userId', userResponse.user_id);
+  console.log(`User created: ${userResponse.user_id}`);
+} else {
+  console.error('Failed to create user');
+}
+
+// Retrieve stored user_id for orders
+const storedUserId = localStorage.getItem('userId');
+if (storedUserId) {
+  // Use in order creation
+  const order = {
+    market: 'BTC_USD',
+    side: 'buy',
+    quantity: 0.1,
+    price: 50000,
+    userId: storedUserId
+  };
+}
+```
+
+---
+
+## Utility Types
+
+### Stat
+
+Generic label-value pair for displaying statistics.
+
+```typescript
+interface Stat {
+  label: string;
+  value: string;
+}
+```
+
+<ParamField path="label" type="string">
+  Display label for the statistic
+</ParamField>
+
+<ParamField path="value" type="string">
+  Value to display
+</ParamField>
+
+**Usage Example:**
+
+```typescript
+import { getTicker } from './utils/requests';
+import { Stat, Ticker } from './utils/types';
+
+const ticker: Ticker = await getTicker('BTC_USD');
+
+// Convert ticker to display stats
+const stats: Stat[] = [
+  { label: 'Last Price', value: `$${ticker.lastPrice}` },
+  { label: '24h Change', value: `${ticker.priceChangePercent}%` },
+  { label: '24h High', value: `$${ticker.high}` },
+  { label: '24h Low', value: `$${ticker.low}` },
+  { label: '24h Volume', value: `${ticker.volume} BTC` },
+  { label: 'Trades', value: ticker.trades }
+];
+
+// Render stats in UI
+stats.forEach((stat) => {
+  console.log(`${stat.label}: ${stat.value}`);
+});
+```
+
+---
+
+## Type Import Examples
+
+All types can be imported from the types module:
+
+```typescript
+import {
+  KLine,
+  Trade,
+  Depth,
+  Ticker,
+  CreateOrder,
+  UserId,
+  Stat
+} from './utils/types';
+```
+
+**Full typing example:**
+
+```typescript
+import { getDepth, getTrades, getKlines, createOrder } from './utils/requests';
+import { Depth, Trade, KLine, CreateOrder } from './utils/types';
+
+async function tradingExample() {
+  // Strongly typed API calls
+  const depth: Depth = await getDepth('BTC_USD');
+  const trades: Trade[] = await getTrades('BTC_USD');
+  const klines: KLine[] = await getKlines('BTC_USD', '1h', Date.now() - 86400000);
+
+  // Type-safe order creation
+  const order: CreateOrder = {
+    market: 'BTC_USD',
+    side: 'buy',
+    quantity: 0.1,
+    price: 50000,
+    userId: 'user-123'
+  };
+
+  const orderId: string = await createOrder(order);
+}
+```
+
+---
+
+## Notes on Type Safety
+
+<Note>
+  **String Numbers**: Most numeric values are represented as strings to preserve precision. Parse them with `parseFloat()` or `Number()` when performing calculations.
+</Note>
+
+<Note>
+  **Timestamps**: Trade timestamps are Unix milliseconds (number). KLine start/end times are strings. Use `new Date()` for conversion.
+</Note>
+
+<Note>
+  **Array Tuples**: The `Depth` interface uses tuple types `[string, string][]` for bids and asks. First element is price, second is quantity.
+</Note>
+
+---
+
+## Type Reference Location
+
+All type definitions are located at:
+
+`source/apps/web/src/utils/types.ts:1-58`

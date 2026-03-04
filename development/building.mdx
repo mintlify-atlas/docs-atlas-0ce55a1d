@@ -1,0 +1,250 @@
+---
+title: Building for Production
+description: Build and optimize Exchange Web for production deployment
+---
+
+## Build Overview
+
+Exchange Web uses a two-stage build process that combines TypeScript compilation with Vite's production bundler for optimal performance.
+
+## Running the Build
+
+<Steps>
+  <Step title="Build from root (Recommended)">
+    From the root directory, use Turborepo to build all packages:
+    
+    ```bash
+    yarn build
+    ```
+    
+    This command runs `turbo build`, which:
+    - Builds packages in dependency order
+    - Leverages Turborepo's caching for faster builds
+    - Only rebuilds changed packages
+  </Step>
+
+  <Step title="Build web app directly">
+    Alternatively, build just the web app from `apps/web`:
+    
+    ```bash
+    cd apps/web
+    yarn build
+    ```
+  </Step>
+</Steps>
+
+## Build Process
+
+The build process for the web app (`apps/web/package.json`) runs:
+
+```json
+"build": "tsc -b && vite build"
+```
+
+This two-stage process ensures type safety and optimized production bundles.
+
+### Stage 1: TypeScript Compilation
+
+<Steps>
+  <Step title="Type checking">
+    ```bash
+    tsc -b
+    ```
+    
+    The TypeScript compiler runs in "build" mode (`-b` flag) to:
+    - Type-check all TypeScript files
+    - Generate declaration files
+    - Validate project references
+    - Fail the build if type errors are found
+  </Step>
+</Steps>
+
+<Warning>
+  The build will fail if there are any TypeScript errors. Fix all type errors before proceeding.
+</Warning>
+
+### Stage 2: Vite Production Build
+
+<Steps>
+  <Step title="Bundle optimization">
+    ```bash
+    vite build
+    ```
+    
+    Vite performs production optimizations:
+    - Code splitting for optimal loading
+    - Tree shaking to remove unused code
+    - Minification of JavaScript and CSS
+    - Asset optimization (images, fonts, etc.)
+    - Generates production-ready HTML
+  </Step>
+</Steps>
+
+## Build Configuration
+
+The build is configured in `apps/web/vite.config.ts`:
+
+```typescript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+```
+
+Vite uses sensible defaults optimized for React applications.
+
+## Output Directory
+
+After a successful build, production files are output to:
+
+```
+apps/web/dist/
+├── index.html
+├── assets/
+│   ├── index-[hash].js
+│   ├── index-[hash].css
+│   └── [other assets]
+└── [static files]
+```
+
+<Note>
+  The `dist` directory contains everything needed to deploy your application. All files are optimized and ready for production.
+</Note>
+
+## Build Optimization
+
+Vite automatically applies several optimizations:
+
+### Code Splitting
+
+- Automatic route-based code splitting via React Router
+- Dynamic imports create separate chunks
+- Reduces initial bundle size
+
+### Asset Optimization
+
+- Images and assets are hashed for cache busting
+- Small assets are inlined as base64
+- Font files are optimized
+
+### Minification
+
+- JavaScript minified with esbuild (extremely fast)
+- CSS minified and optimized
+- HTML minified
+
+### Tree Shaking
+
+- Unused code is automatically removed
+- ES modules enable efficient tree shaking
+- Reduces final bundle size
+
+## Turborepo Build Caching
+
+Turborepo caches build outputs for faster subsequent builds:
+
+<CodeGroup>
+```json turbo.json
+{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    }
+  }
+}
+```
+</CodeGroup>
+
+- **dependsOn**: Ensures dependencies build first
+- **inputs**: Cache invalidates when these files change
+- **outputs**: Directories to cache after successful build
+
+<Note>
+  If your build hasn't changed, Turborepo will restore from cache instantly, saving significant time.
+</Note>
+
+## Testing the Build Locally
+
+Before deploying, test your production build locally:
+
+<Steps>
+  <Step title="Build the application">
+    ```bash
+    yarn build
+    ```
+  </Step>
+
+  <Step title="Preview the build">
+    From `apps/web` directory:
+    
+    ```bash
+    cd apps/web
+    yarn preview
+    ```
+    
+    This starts a local server serving your production build.
+  </Step>
+
+  <Step title="Test in browser">
+    Open the URL shown in your terminal (typically `http://localhost:4173`) and verify:
+    
+    - All routes work correctly
+    - Assets load properly
+    - No console errors
+    - Performance is optimal
+  </Step>
+</Steps>
+
+<Warning>
+  The preview server is for local testing only. Do not use it for production deployment.
+</Warning>
+
+## Build Performance Tips
+
+### Faster Builds
+
+- Use Turborepo's caching: `yarn build`
+- Keep dependencies up to date
+- Leverage remote caching in CI/CD
+
+### Debugging Build Issues
+
+<CodeGroup>
+```bash Clean build
+yarn turbo build --force
+```
+
+```bash Verbose output
+yarn turbo build --verbose
+```
+
+```bash Debug Vite build
+DEBUG=vite:* yarn build
+```
+</CodeGroup>
+
+## Environment Variables
+
+Vite exposes environment variables prefixed with `VITE_`:
+
+```bash
+# .env.production
+VITE_API_URL=https://api.production.com
+VITE_WS_URL=wss://ws.production.com
+```
+
+<Note>
+  Environment variables are embedded at build time. Rebuild after changing environment variables.
+</Note>
+
+## Next Steps
+
+Once your build is successful:
+
+- Learn about [deployment options](/development/deployment)
+- Set up CI/CD pipelines
+- Configure environment variables for production

@@ -1,0 +1,167 @@
+---
+title: "ChartManager"
+description: "Lightweight-charts wrapper for managing candlestick charts in Exchange Web"
+---
+
+## Overview
+
+The `ChartManager` class provides a clean interface for creating and managing candlestick charts using the [lightweight-charts](https://tradingview.github.io/lightweight-charts/) library. It handles chart initialization, real-time updates, and cleanup.
+
+## Class: ChartManager
+
+### Constructor
+
+Initializes a new chart instance with the specified configuration.
+
+```typescript
+constructor(
+  ref: any,
+  initialData: any[],
+  layout: { background: string; color: string }
+)
+```
+
+<ParamField path="ref" type="HTMLElement" required>
+  DOM element reference where the chart will be mounted
+</ParamField>
+
+<ParamField path="initialData" type="array" required>
+  Array of initial candlestick data points. Each object should contain:
+  - `timestamp` (number): Unix timestamp in milliseconds
+  - `open` (number): Opening price
+  - `high` (number): Highest price
+  - `low` (number): Lowest price
+  - `close` (number): Closing price
+</ParamField>
+
+<ParamField path="layout" type="object" required>
+  Chart layout configuration
+  - `background` (string): Background color (hex or rgb)
+  - `color` (string): Text color (hex or rgb)
+</ParamField>
+
+#### Chart Configuration
+
+The constructor automatically configures the chart with:
+
+- **Crosshair**: Normal mode with dashed lines (#707070)
+- **Price Scale**: Right-aligned with visible ticks and borders
+- **Grid**: Horizontal and vertical lines (#262626)
+- **Candlestick Colors**:
+  - Bullish (up): #34cb88 (green)
+  - Bearish (down): #ff615c (red)
+  - Wicks: #5dd5a0 (up), #ff887f (down)
+
+### Methods
+
+#### update()
+
+Updates the chart with new price data. Handles both incremental updates and new candle initialization.
+
+```typescript
+public update(updatedPrice: any): void
+```
+
+<ParamField path="updatedPrice" type="object" required>
+  Price update object containing:
+  - `open` (number): Opening price
+  - `high` (number): Highest price
+  - `low` (number): Lowest price
+  - `close` (number): Closing price
+  - `newCandleInitiated` (boolean): Whether this starts a new candle
+  - `time` (number): Unix timestamp in milliseconds (required if newCandleInitiated is true)
+</ParamField>
+
+<Note>
+The method automatically tracks the last update time. When `newCandleInitiated` is true, it updates the internal timestamp to start a new candle period.
+</Note>
+
+#### destroy()
+
+Cleans up and removes the chart instance from the DOM.
+
+```typescript
+public destroy(): void
+```
+
+<Note>
+Always call this method when unmounting the chart component to prevent memory leaks.
+</Note>
+
+## Usage Example
+
+```typescript
+import { ChartManager } from "@/utils/chart_manager";
+
+// Initialize chart
+const chartRef = document.getElementById("chart-container");
+const initialData = [
+  {
+    timestamp: 1640000000000,
+    open: 50000,
+    high: 51000,
+    low: 49000,
+    close: 50500,
+  },
+  // ... more data points
+];
+
+const chart = new ChartManager(chartRef, initialData, {
+  background: "#131722",
+  color: "#ffffff",
+});
+
+// Update with real-time data
+chart.update({
+  open: 50500,
+  high: 50800,
+  low: 50400,
+  close: 50700,
+  newCandleInitiated: false,
+});
+
+// Start a new candle
+chart.update({
+  open: 50700,
+  high: 50700,
+  low: 50700,
+  close: 50700,
+  newCandleInitiated: true,
+  time: Date.now(),
+});
+
+// Cleanup when done
+chart.destroy();
+```
+
+## Integration with React
+
+```typescript
+import { useEffect, useRef } from "react";
+import { ChartManager } from "@/utils/chart_manager";
+
+function CandlestickChart({ initialData, layout }) {
+  const chartRef = useRef(null);
+  const chartManager = useRef<ChartManager | null>(null);
+
+  useEffect(() => {
+    if (chartRef.current && initialData.length > 0) {
+      chartManager.current = new ChartManager(
+        chartRef.current,
+        initialData,
+        layout
+      );
+    }
+
+    return () => {
+      chartManager.current?.destroy();
+    };
+  }, []);
+
+  return <div ref={chartRef} style={{ width: "100%", height: "400px" }} />;
+}
+```
+
+## Source Location
+
+`apps/web/src/utils/chart_manager.ts`

@@ -1,0 +1,260 @@
+---
+title: 'Depth'
+description: 'Order book and recent trades component with real-time WebSocket updates'
+---
+
+## Overview
+
+The `Depth` component displays market depth information through two tabs: an order book view and a recent trades view. It maintains real-time data via WebSocket subscriptions and manages order book state through React context.
+
+## Props
+
+<ParamField path="market" type="string" required>
+  The market identifier for the trading pair (e.g., "SOL_USDC")
+</ParamField>
+
+## Component State
+
+<ParamField path="activeTab" type="string" default="orderbook">
+  Controls which tab is displayed:
+  - `"orderbook"`: Shows the OrderBook component
+  - `"recentTrades"`: Shows the RecentTrades component
+</ParamField>
+
+## WebSocket Integration
+
+### Depth Updates
+
+Subscribes to `depth.{market}` stream for order book updates:
+
+<Accordion title="Depth Callback Logic">
+  The component processes incremental depth updates:
+  
+  1. **Update existing orders**: Matches by price level and updates quantity
+  2. **Remove zero quantities**: Filters out orders with quantity = 0
+  3. **Add new orders**: Inserts new price levels not in current book
+  4. **Sort and trim**: Maintains top 30 bids (descending) and asks (ascending)
+  
+  ```tsx
+  WsManager.getInstance().registerCallback(
+    "depth",
+    (data: any) => {
+      // Updates bids and asks state
+      setBids((originalBids) => {
+        // Update logic...
+      });
+      setAsks((originalAsks) => {
+        // Update logic...
+      });
+    },
+    `DEPTH-${market}`
+  );
+  ```
+</Accordion>
+
+### Trade Updates
+
+Subscribes to `trade.{market}` stream for recent trades:
+
+<Accordion title="Trade Callback Logic">
+  Processes incoming trade data:
+  
+  ```tsx
+  WsManager.getInstance().registerCallback(
+    "trade",
+    (data: any) => {
+      const newTrade: Trade = {
+        id: data.t,
+        isBuyerMaker: data.m,
+        price: data.p,
+        quantity: data.q,
+        quoteQuantity: data.q,
+        timestamp: data.T,
+      };
+      
+      setPrice(data.p);  // Update current price
+      
+      setTrades((oldTrades) => {
+        const newTrades = [...oldTrades];
+        newTrades.unshift(newTrade);  // Add to front
+        newTrades.pop();              // Remove last
+        return newTrades;
+      });
+    },
+    `TRADE-${market}`
+  );
+  ```
+</Accordion>
+
+## Context Dependencies
+
+The component uses `TradesContext` to manage shared state:
+
+<ParamField path="setTrades" type="function">
+  Updates the trades array with new trade data
+</ParamField>
+
+<ParamField path="setBids" type="function">
+  Updates the bids array (buy orders)
+</ParamField>
+
+<ParamField path="setAsks" type="function">
+  Updates the asks array (sell orders)
+</ParamField>
+
+<ParamField path="setPrice" type="function">
+  Updates the current market price
+</ParamField>
+
+<ParamField path="setTotalBidSize" type="function">
+  Sets total quantity of all bids
+</ParamField>
+
+<ParamField path="setTotalAskSize" type="function">
+  Sets total quantity of all asks
+</ParamField>
+
+<ParamField path="orderBookRef" type="React.RefObject">
+  Reference to order book container for scroll control
+</ParamField>
+
+## Initial Data Loading
+
+### REST API Initialization
+
+The component fetches initial data on mount:
+
+<Tabs>
+  <Tab title="Trades">
+    ```tsx
+    getTrades(market).then((trades) => {
+      trades = trades.filter((trade) => parseFloat(trade.quantity) !== 0);
+      trades = trades.slice(0, 50);  // Keep last 50 trades
+      setTrades(trades);
+      setPrice(trades?.[0]?.price);  // Set current price
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Order Book">
+    ```tsx
+    getDepth(market).then((depth) => {
+      const bidsData = depth.bids;
+      const asksData = depth.asks;
+      
+      // Filter zero quantities
+      let filteredBids = bidsData.filter((bid) => parseFloat(bid[1]) !== 0);
+      let filteredAsks = asksData.filter((ask) => parseFloat(ask[1]) !== 0);
+      
+      // Calculate totals
+      const totalBids = filteredBids.reduce(
+        (acc, bid) => acc + parseFloat(bid[1]), 0
+      );
+      const totalAsks = filteredAsks.reduce(
+        (acc, ask) => acc + parseFloat(ask[1]), 0
+      );
+      
+      // Keep top 30 levels
+      filteredBids = filteredBids.slice(-30);
+      filteredAsks = filteredAsks.slice(0, 30);
+      
+      setBids(filteredBids);
+      setAsks(filteredAsks);
+      setTotalBidSize(totalBids);
+      setTotalAskSize(totalAsks);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Cleanup & Unsubscription
+
+The component properly cleans up WebSocket subscriptions:
+
+```tsx
+return () => {
+  WsManager.getInstance().deRegisterCallback("depth", `DEPTH-${market}`);
+  WsManager.getInstance().sendMessage({
+    method: "UNSUBSCRIBE",
+    params: [`depth.${market}`],
+  });
+  
+  WsManager.getInstance().deRegisterCallback("trade", `TRADE-${market}`);
+  WsManager.getInstance().sendMessage({
+    method: "UNSUBSCRIBE",
+    params: [`trade.${market}`],
+  });
+};
+```
+
+## Child Components
+
+### OrderBook
+
+Displays bid/ask ladder with:
+- Price levels
+- Quantities at each level
+- Cumulative depth visualization
+- Re-center button
+
+See: `apps/web/src/components/depth/OrderBook.tsx`
+
+### RecentTrades
+
+Shows trade history with:
+- Trade price (color-coded by side)
+- Trade size
+- Timestamp
+
+See: `apps/web/src/components/depth/RecentTrades.tsx`
+
+## Usage Example
+
+```tsx
+import { Depth } from '@/components/Depth';
+import { TradesProvider } from '@/state/TradesProvider';
+
+function MarketPage() {
+  return (
+    <TradesProvider>
+      <Depth market="SOL_USDC" />
+    </TradesProvider>
+  );
+}
+```
+
+<Note>
+  The component must be wrapped in a `TradesProvider` to access the required context.
+</Note>
+
+## Order Book Data Format
+
+Bids and asks are arrays of tuples:
+
+```typescript
+type OrderBookLevel = [string, string]; // [price, quantity]
+
+// Example:
+const bids: OrderBookLevel[] = [
+  ["100.50", "5.234"],  // $100.50 for 5.234 SOL
+  ["100.45", "2.156"],
+  // ...
+];
+```
+
+## Trade Data Format
+
+```typescript
+interface Trade {
+  id: string;              // Trade ID
+  isBuyerMaker: boolean;   // true = sell, false = buy
+  price: string;           // Trade price
+  quantity: string;        // Trade quantity
+  quoteQuantity: string;   // Quote asset quantity
+  timestamp: number;       // Unix timestamp
+}
+```
+
+## Source Code Reference
+
+See implementation in: `apps/web/src/components/Depth.tsx:1-258`

@@ -1,0 +1,282 @@
+---
+title: 'Order Book'
+description: 'Real-time order book visualization with bid/ask depth and recent trades'
+icon: 'book'
+---
+
+## Overview
+
+The order book system provides real-time visualization of market depth, displaying bids and asks with cumulative depth indicators. It includes a tabbed interface to switch between the order book and recent trades views.
+
+## Depth Component
+
+The `Depth` component is the container that manages WebSocket subscriptions and state:
+
+```tsx Depth.tsx
+export const Depth = ({ market }: { market: string }) => {
+  const [activeTab, setActiveTab] = useState("orderbook");
+  const { setTrades, setBids, setAsks, setPrice } = useContext(TradesContext);
+
+  useEffect(() => {
+    // Subscribe to depth updates
+    WsManager.getInstance().registerCallback("depth", (data: any) => {
+      setBids((originalBids) => {
+        let bidsAfterUpdate = [...(originalBids || [])];
+        // Update logic...
+        return bidsAfterUpdate.slice(-30);
+      });
+    }, `DEPTH-${market}`);
+
+    // Subscribe to trade updates
+    WsManager.getInstance().registerCallback("trade", (data: any) => {
+      const newTrade: Trade = {
+        id: data.t,
+        isBuyerMaker: data.m,
+        price: data.p,
+        quantity: data.q,
+        timestamp: data.T,
+      };
+      setTrades((oldTrades) => {
+        const newTrades = [...oldTrades];
+        newTrades.unshift(newTrade);
+        newTrades.pop();
+        return newTrades;
+      });
+    }, `TRADE-${market}`);
+
+    WsManager.getInstance().sendMessage({
+      method: "SUBSCRIBE",
+      params: [`depth.${market}`],
+    });
+
+    return () => {
+      WsManager.getInstance().deRegisterCallback("depth", `DEPTH-${market}`);
+    };
+  }, [market]);
+
+  return (
+    <div className="h-full bg-container-bg rounded-xl border">
+      {activeTab === "orderbook" ? <OrderBook /> : <RecentTrades />}
+    </div>
+  );
+};
+```
+
+## OrderBook Component
+
+<Tabs>
+  <Tab title="Display Logic">
+    The order book displays bids (buy orders) and asks (sell orders) with visual depth indicators:
+
+    ```tsx OrderBook.tsx
+    export const OrderBook = () => {
+      const { bids, asks, price, totalBidSize, totalAskSize } = useContext(TradesContext);
+
+      const calculateCumulativeWidth = (
+        cumulativeSize: number,
+        totalSize: number
+      ): string => {
+        return totalSize ? `${(cumulativeSize * 100) / totalSize}%` : "0%";
+      };
+
+      let cumulativeBidSize = 0;
+
+      return (
+        <div className="h-full">
+          <div className="flex-1 overflow-y-auto">
+            {bids?.map((order, index) => {
+              const size = parseFloat(order[1]);
+              cumulativeBidSize += size;
+
+              return (
+                <div key={index} className="relative w-full">
+                  <div className="flex justify-between">
+                    <div className="text-text-positive-green-button">
+                      {order[0]}
+                    </div>
+                    <div>{order[1]}</div>
+                  </div>
+                  {/* Cumulative background */}
+                  <div className="absolute opacity-20">
+                    <div
+                      className="bg-positive-green-pressed"
+                      style={{
+                        width: calculateCumulativeWidth(cumulativeBidSize, totalBidSize),
+                        transition: 'width 0.3s ease-in-out'
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+    ```
+  </Tab>
+
+  <Tab title="Visual Features">
+    ### Depth Visualization
+    
+    The order book uses a dual-layer background system:
+    
+    1. **Cumulative Depth** (20% opacity): Shows total accumulated volume
+    2. **Individual Size** (40% opacity): Shows size of each order level
+    
+    ### Color Coding
+    
+    - **Bids**: Green tones (`bg-positive-green`)
+    - **Asks**: Red tones (`bg-negative-red`)
+    - **Current Price**: Highlighted in emphasis color
+  </Tab>
+
+  <Tab title="Re-center Feature">
+    ```tsx
+    const handleRecenter = () => {
+      if (bidsRef.current && asksRef.current) {
+        bidsRef.current.scrollTop = 0;
+        asksRef.current.scrollTop = 0;
+      }
+    };
+    ```
+    
+    The re-center button allows users to quickly return to the current market price.
+  </Tab>
+</Tabs>
+
+## Recent Trades Component
+
+Displays the latest executed trades with time, price, and size:
+
+```tsx RecentTrades.tsx
+export const RecentTrades = () => {
+  const { trades } = useContext(TradesContext);
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="grid grid-cols-3 gap-4 py-2">
+        <span>Price (USD)</span>
+        <span>Size (SOL)</span>
+        <span>Time</span>
+      </div>
+
+      {/* Trades List */}
+      <div className="flex-1 overflow-y-auto">
+        {trades.map((trade, index) => (
+          <div key={index} className="grid grid-cols-3 py-2">
+            <span className={trade.isBuyerMaker ? "text-positive-green" : "text-negative-red"}>
+              {trade.price}
+            </span>
+            <span>{trade.quantity}</span>
+            <span>{formatTime(trade.timestamp)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+## WebSocket Updates
+
+<Note>
+  The order book receives real-time updates through two WebSocket channels:
+  - `depth.{market}`: Order book updates
+  - `trade.{market}`: Recent trade updates
+</Note>
+
+### Update Logic
+
+<Accordion title="Bid/Ask Update Algorithm">
+  When a depth update is received:
+  
+  1. Iterate through existing bids/asks
+  2. Update matching price levels with new size
+  3. Remove orders with size = 0
+  4. Add new price levels not in current book
+  5. Sort by price (descending for bids, ascending for asks)
+  6. Limit to 30 levels per side
+</Accordion>
+
+## Data Structure
+
+```typescript
+type Order = [price: string, size: string];
+
+type Trade = {
+  id: string;
+  isBuyerMaker: boolean;
+  price: string;
+  quantity: string;
+  quoteQuantity: string;
+  timestamp: number;
+};
+```
+
+## Usage Example
+
+```tsx
+import { Depth } from "@/components/Depth";
+import { TradesProvider } from "@/state/TradesProvider";
+
+function App() {
+  return (
+    <TradesProvider>
+      <Depth market="SOL_USDC" />
+    </TradesProvider>
+  );
+}
+```
+
+## Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `market` | `string` | Market identifier for subscriptions |
+
+## Performance Optimizations
+
+<Tip>
+  - Order book limited to 30 levels per side to reduce rendering overhead
+  - Updates use functional state updates to prevent race conditions
+  - Trades list limited to 50 most recent trades
+  - Smooth scrolling disabled by default for better performance
+</Tip>
+
+## State Management
+
+<Warning>
+  The order book relies on `TradesContext` for state management. Ensure the component is wrapped in `TradesProvider`.
+</Warning>
+
+## Visual Customization
+
+<Accordion title="Color Configuration">
+  Colors are defined in Tailwind configuration:
+  
+  ```javascript
+  {
+    'positive-green': '#34cb88',
+    'positive-green-pressed': '#2ba872',
+    'negative-red': '#ff615c',
+    'negative-red-pressed': '#e54d49'
+  }
+  ```
+</Accordion>
+
+## Related Components
+
+- [Trading Interface](/features/trading-interface) - Main trading layout
+- [Charts](/features/charts) - Price chart integration
+- [Swap Interface](/features/swap-interface) - Order placement

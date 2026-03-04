@@ -1,0 +1,121 @@
+---
+title: 'SwapInterface'
+description: 'Trading interface component for creating buy and sell orders'
+---
+
+## Overview
+
+The `SwapInterface` component provides a complete trading interface for placing limit and market orders. It handles order creation, fee calculation, and position sizing with real-time price updates.
+
+## Props
+
+<ParamField path="market" type="string" required>
+  The market identifier for the trading pair (e.g., "SOL_USDC")
+</ParamField>
+
+## Component State
+
+The component manages the following state:
+
+<Accordion title="Trading Mode & Order Type">
+  - **isBuyMode** (`boolean`): Toggles between buy and sell mode
+  - **orderType** (`string`): Order type - "Limit" or "Market"
+</Accordion>
+
+<Accordion title="Price & Size">
+  - **limitPrice** (`number`): Price for limit orders (defaults to current market price)
+  - **size** (`string`): Trade size in base asset units
+  - **maxUSD** (`number`): USD value calculated from price × size
+</Accordion>
+
+<Accordion title="Calculations">
+  - **fees** (`number`): Trading fees at 0.1% (calculated as `maxUSD * 0.001`)
+  - **position** (`number`): Position size in base asset
+</Accordion>
+
+## Key Features
+
+### Order Creation Flow
+
+The component follows this flow when creating orders:
+
+1. **Validation**: Checks quantity > 0 and valid limit price
+2. **Order Construction**: Builds order object with market, side, quantity, price
+3. **API Call**: Sends order via `createOrder()` utility
+4. **Feedback**: Shows success/error toast notifications
+
+<Note>
+  User ID is retrieved from `localStorage.getItem("user_id")` with fallback to `"test_user"`
+</Note>
+
+### Real-time Calculations
+
+The component recalculates values when size or price changes:
+
+```tsx
+useEffect(() => {
+  const price = orderType === "Market" ? currentPrice : limitPrice;
+  const calculatedValue = price * Number(size || 0);
+  const calculatedFees = calculatedValue * 0.001; // 0.1% fees
+  setMaxUSD(calculatedValue);
+  setFees(calculatedFees);
+  setPosition(Number(size || 0));
+}, [size, limitPrice, orderType, currentPrice]);
+```
+
+## Usage Example
+
+```tsx
+import { SwapInterface } from '@/components/SwapInterface';
+
+function TradingPage() {
+  return (
+    <SwapInterface market="SOL_USDC" />
+  );
+}
+```
+
+## Implementation Details
+
+### Context Integration
+
+The component uses `TradesContext` to access current market price:
+
+```tsx
+const { price } = useContext(TradesContext);
+const currentPrice = parseFloat(price ?? "0");
+```
+
+### Order Object Structure
+
+```typescript
+interface CreateOrder {
+  market: string;        // e.g., "SOL_USDC"
+  side: "BUY" | "SELL";  // Order side
+  quantity: number;      // Order size
+  price: number;         // Order price
+  userId: string;        // User identifier
+}
+```
+
+## Source Code Reference
+
+See implementation in: `apps/web/src/components/SwapInterface.tsx:1-290`
+
+<Tabs>
+  <Tab title="Component Structure">
+    - Buy/Sell mode toggle
+    - Order type selector (Limit/Market)
+    - Price input (conditional based on order type)
+    - Size and USD value inputs (bidirectional sync)
+    - Fee and position display
+    - Submit button with dynamic styling
+  </Tab>
+  
+  <Tab title="Styling States">
+    The component applies different styles based on trading mode:
+    - **Buy mode**: Green highlights (`bg-positive-green-bg`)
+    - **Sell mode**: Red highlights (`bg-negative-red-bg`)
+    - Button colors match the active mode
+  </Tab>
+</Tabs>

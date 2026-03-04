@@ -1,0 +1,260 @@
+---
+title: "WsManager"
+description: "WebSocket manager singleton for real-time market data streaming"
+---
+
+## Overview
+
+The `WsManager` class is a singleton that manages WebSocket connections to the Exchange Web backend. It handles message buffering, callback registration, and real-time data streaming for market depth and trades.
+
+## Base URL
+
+```typescript
+const BASE_URL = "wss://exchange.jogeshwar.xyz/ws";
+```
+
+## Class: WsManager
+
+### Static Methods
+
+#### getInstance()
+
+Returns the singleton instance of WsManager. Creates a new instance if one doesn't exist.
+
+```typescript
+public static getInstance(): WsManager
+```
+
+<ResponseField name="return" type="WsManager">
+  The singleton WsManager instance
+</ResponseField>
+
+## Instance Methods
+
+### init()
+
+Initializes the WebSocket connection and sets up event handlers. Called automatically by the constructor.
+
+```typescript
+init(): void
+```
+
+#### Connection Behavior
+
+- **On Open**: Flushes all buffered messages to the WebSocket
+- **On Message**: Parses incoming messages and invokes registered callbacks based on message type
+
+#### Supported Message Types
+
+<ResponseField name="depth" type="object">
+  Order book depth updates
+  - `bids` (array): Updated bid orders [[price, quantity], ...]
+  - `asks` (array): Updated ask orders [[price, quantity], ...]
+</ResponseField>
+
+<ResponseField name="trade" type="object">
+  Trade execution data
+  - Contains trade information from the message data
+</ResponseField>
+
+### sendMessage()
+
+Sends a message to the WebSocket server. Automatically buffers messages if connection is not yet established.
+
+```typescript
+sendMessage(message: any): void
+```
+
+<ParamField path="message" type="object" required>
+  Message object to send. The method automatically adds a unique `id` field.
+</ParamField>
+
+<Note>
+If the WebSocket connection is not initialized, messages are buffered and sent when the connection opens.
+</Note>
+
+#### Example Message
+
+```typescript
+wsManager.sendMessage({
+  method: "SUBSCRIBE",
+  params: ["depth.BTC_USDT"],
+});
+```
+
+### registerCallback()
+
+Registers a callback function for a specific message type.
+
+```typescript
+async registerCallback(
+  type: string,
+  callback: any,
+  id: string
+): Promise<void>
+```
+
+<ParamField path="type" type="string" required>
+  Message type to listen for (e.g., "depth", "trade", "ticker")
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Callback function to invoke when messages of this type are received
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Unique identifier for this callback registration (used for deregistration)
+</ParamField>
+
+#### Callback Signatures
+
+<Tabs>
+  <Tab title="Depth Callback">
+    ```typescript
+    (data: { bids: [string, string][], asks: [string, string][] }) => void
+    ```
+  </Tab>
+  <Tab title="Trade Callback">
+    ```typescript
+    (data: any) => void
+    ```
+  </Tab>
+</Tabs>
+
+### deRegisterCallback()
+
+Removes a previously registered callback.
+
+```typescript
+async deRegisterCallback(type: string, id: string): Promise<void>
+```
+
+<ParamField path="type" type="string" required>
+  Message type the callback was registered for
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the callback to remove
+</ParamField>
+
+## Usage Example
+
+### Basic Setup
+
+```typescript
+import { WsManager } from "@/utils/ws_manager";
+
+// Get singleton instance
+const wsManager = WsManager.getInstance();
+
+// Subscribe to depth updates
+wsManager.sendMessage({
+  method: "SUBSCRIBE",
+  params: ["depth.BTC_USDT"],
+});
+
+// Register callback for depth updates
+await wsManager.registerCallback(
+  "depth",
+  (data) => {
+    console.log("Bids:", data.bids);
+    console.log("Asks:", data.asks);
+  },
+  "depth-handler-1"
+);
+```
+
+### React Integration
+
+```typescript
+import { useEffect } from "react";
+import { WsManager } from "@/utils/ws_manager";
+
+function MarketDepth({ market }) {
+  useEffect(() => {
+    const wsManager = WsManager.getInstance();
+    const callbackId = `depth-${market}`;
+
+    // Subscribe to market depth
+    wsManager.sendMessage({
+      method: "SUBSCRIBE",
+      params: [`depth.${market}`],
+    });
+
+    // Register callback
+    wsManager.registerCallback(
+      "depth",
+      (data) => {
+        // Update state with depth data
+        setBids(data.bids);
+        setAsks(data.asks);
+      },
+      callbackId
+    );
+
+    // Cleanup
+    return () => {
+      wsManager.deRegisterCallback("depth", callbackId);
+      wsManager.sendMessage({
+        method: "UNSUBSCRIBE",
+        params: [`depth.${market}`],
+      });
+    };
+  }, [market]);
+
+  return <div>{/* Render depth data */}</div>;
+}
+```
+
+### Multiple Callbacks
+
+```typescript
+const wsManager = WsManager.getInstance();
+
+// Register multiple callbacks for the same type
+await wsManager.registerCallback(
+  "trade",
+  (trade) => {
+    updateTradeHistory(trade);
+  },
+  "trade-history"
+);
+
+await wsManager.registerCallback(
+  "trade",
+  (trade) => {
+    updateLastPrice(trade.price);
+  },
+  "last-price"
+);
+
+// Both callbacks will be invoked for each trade message
+```
+
+## Message Buffering
+
+The WsManager automatically buffers messages sent before the WebSocket connection is established:
+
+```typescript
+const wsManager = WsManager.getInstance();
+
+// These messages are buffered if connection isn't ready
+wsManager.sendMessage({ method: "SUBSCRIBE", params: ["depth.BTC_USDT"] });
+wsManager.sendMessage({ method: "SUBSCRIBE", params: ["trade.BTC_USDT"] });
+
+// All buffered messages are sent when connection opens
+```
+
+## Architecture Notes
+
+<Note>
+The WsManager uses the singleton pattern to ensure only one WebSocket connection exists across the application. This prevents duplicate connections and ensures efficient resource usage.
+</Note>
+
+<Note>
+Callbacks are stored in a dictionary keyed by message type. Multiple callbacks can be registered for the same type, and all will be invoked when messages of that type are received.
+</Note>
+
+## Source Location
+
+`apps/web/src/utils/ws_manager.ts`

@@ -1,0 +1,237 @@
+---
+title: 'MarketBar'
+description: 'Market ticker displaying price, 24h stats, and market information'
+---
+
+## Overview
+
+The `MarketBar` component displays real-time market information including the current price, 24-hour statistics (volume, high, low), and market pair details. It integrates with the trading context to show live price updates.
+
+## Props
+
+<ParamField path="market" type="string" required>
+  The market identifier for the trading pair (e.g., "SOL_USDC")
+</ParamField>
+
+## Displayed Information
+
+### Market Pair Section
+
+<Accordion title="Market Identifier Display">
+  - **Token icons**: Overlapping SOL and USDC logos
+  - **Market name**: "SOL/USDC" text label
+  - **Fixed width**: 308px container with rounded border
+  - **Styling**: Container background with border and hover effect
+</Accordion>
+
+### Price Section
+
+<Accordion title="Live Price Display">
+  The component shows:
+  - **Current price**: Live price from `TradesContext`
+  - **Status indicator**: Green dot showing market is active
+  - **Price change**: 24h percentage change with color coding
+  
+  ```tsx
+  <span className="text-positive-green flex items-center">
+    {ticker?.priceChange}%
+  </span>
+  ```
+</Accordion>
+
+### 24-Hour Statistics
+
+The component displays three key metrics:
+
+<ParamField path="24h Volume" type="number">
+  Total trading volume in USD over the last 24 hours
+  
+  **Format**: `$XX,XXX` with locale-specific number formatting
+</ParamField>
+
+<ParamField path="24h High" type="number">
+  Highest price reached in the last 24 hours
+  
+  **Format**: `$XXX.XX`
+</ParamField>
+
+<ParamField path="24h Low" type="number">
+  Lowest price reached in the last 24 hours
+  
+  **Format**: `$XXX.XX`
+</ParamField>
+
+## Context Integration
+
+The component uses `TradesContext` for state management:
+
+```tsx
+const { ticker, setTicker, stats, setStats, price } = useContext(TradesContext);
+```
+
+<Tabs>
+  <Tab title="ticker">
+    Contains 24h market statistics:
+    ```typescript
+    interface Ticker {
+      volume: number;      // 24h volume
+      high: string;        // 24h high price
+      low: string;         // 24h low price
+      priceChange: string; // % change
+    }
+    ```
+  </Tab>
+  
+  <Tab title="price">
+    Current market price (string) updated in real-time from WebSocket
+  </Tab>
+  
+  <Tab title="stats">
+    Array of formatted statistics for display:
+    ```typescript
+    interface Stat {
+      label: string;  // e.g., "24h Volume"
+      value: string;  // e.g., "$1,234,567"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Data Loading
+
+### Initial Fetch
+
+On component mount or market change:
+
+```tsx
+useEffect(() => {
+  getTicker(market).then(setTicker);
+  
+  setStats([
+    { label: "24h Volume", value: `$${ticker?.volume.toLocaleString()}` },
+    { label: "24h High", value: `$${ticker?.high}` },
+    { label: "24h Low", value: `$${ticker?.low}` },
+  ]);
+}, [market, setStats, setTicker, ticker?.high, ticker?.low, ticker?.volume]);
+```
+
+<Note>
+  The effect depends on ticker values, so it updates whenever ticker data changes.
+</Note>
+
+## Color Coding
+
+### Price Change Indicator
+
+The component uses semantic colors for price changes:
+
+- **Positive**: `text-positive-green` (price increased)
+- **Negative**: `text-negative-red` (price decreased)
+
+```tsx
+<span className="text-positive-green flex items-center">
+  {ticker?.priceChange}%
+</span>
+```
+
+### Status Indicator
+
+A green dot indicates the market is active:
+
+```tsx
+<div className="block h-2 w-2 rounded-full bg-positive-green mr-1"></div>
+```
+
+## Responsive Behavior
+
+<Tabs>
+  <Tab title="Mobile (< 768px)">
+    - Market name hidden (`hidden md:block`)
+    - Statistics section hidden
+    - Only icons and price visible
+  </Tab>
+  
+  <Tab title="Desktop (≥ 768px)">
+    - Full market information displayed
+    - All statistics visible
+    - Horizontal scrolling for overflow content
+  </Tab>
+</Tabs>
+
+## Usage Example
+
+```tsx
+import { MarketBar } from '@/components/MarketBar';
+import { TradesProvider } from '@/state/TradesProvider';
+
+function TradingLayout() {
+  return (
+    <TradesProvider>
+      <MarketBar market="SOL_USDC" />
+      {/* Other trading components */}
+    </TradesProvider>
+  );
+}
+```
+
+<Note>
+  Must be wrapped in `TradesProvider` to access market data context.
+</Note>
+
+## Layout Structure
+
+```
+MarketBar
+├── Market Pair Container (fixed width)
+│   ├── Token Icons (overlapping)
+│   └── Market Name (SOL/USDC)
+└── Stats Container (flexible width)
+    ├── Price Section
+    │   ├── Status Dot
+    │   ├── Current Price
+    │   └── Price Change %
+    └── Statistics (hidden on mobile)
+        ├── 24h Volume
+        ├── 24h High
+        └── 24h Low
+```
+
+## Styling Features
+
+### Container Styling
+
+- **Background**: `bg-container-bg`
+- **Borders**: `border-container-border`
+- **Hover**: `hover:bg-container-bg-hover`
+- **Rounded corners**: `rounded-xl` on containers
+
+### Scrolling
+
+- **Desktop**: Thin scrollbar (`thin-scroll`)
+- **Mobile**: Hidden scrollbar (`hidden-scroll`)
+- **Behavior**: Horizontal scroll for overflow stats
+
+## Source Code Reference
+
+See implementation in: `apps/web/src/components/MarketBar.tsx:1-109`
+
+<Accordion title="Stats Rendering Logic">
+  ```tsx
+  {stats.map((stat, index) => (
+    <div key={index} className="px-2 xl:px-6 hidden md:flex flex-col justify-center">
+      <div className="outline-none focus:outline-none flex">
+        <div className="flex flex-col">
+          <div className="text-nowrap overflow-hidden text-text-label">
+            {stat.label}
+          </div>
+          <div className="flex items-center grow">
+            <span className="font-semibold text-[13px] leading-[16px] text-text-default">
+              {stat.value}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  ))}
+  ```
+</Accordion>

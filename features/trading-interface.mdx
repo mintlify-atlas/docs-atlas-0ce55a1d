@@ -1,0 +1,162 @@
+---
+title: 'Trading Interface'
+description: 'The main trading interface combining charts and order book depth'
+icon: 'chart-line'
+---
+
+## Overview
+
+The `TradeInterface` component is the primary trading view that combines the price chart and order book depth display in a responsive grid layout. It provides traders with a comprehensive view of market data.
+
+## Component Structure
+
+The trading interface uses a grid layout that adapts to different screen sizes:
+
+```tsx TradeInterface.tsx
+import { Depth } from "./Depth";
+import { TradeView } from "./trade_interface/TradeView";
+
+export const TradeInterface = ({ market }: { market: string }) => {
+  return (
+    <div className="grid grid-rows-[600px_1fr] grid-cols-1 md:grid-cols-[3fr_1fr] gap-2">
+      <TradeView market={market as string} />
+      <Depth market={market as string} />
+    </div>
+  );
+};
+```
+
+## Layout Breakdown
+
+<Accordion title="Grid Layout">
+  The interface uses CSS Grid with responsive breakpoints:
+  
+  - **Mobile**: Single column layout with chart on top
+  - **Desktop**: Two-column layout with 3:1 ratio (chart:depth)
+  - **Chart height**: Fixed at 600px for optimal viewing
+</Accordion>
+
+## Child Components
+
+<CardGroup cols={2}>
+  <Card title="TradeView" icon="chart-candlestick" href="/features/charts">
+    Real-time candlestick charts with multiple timeframes (1m, 1H, 1D, 1W)
+  </Card>
+  
+  <Card title="Depth" icon="layer-group" href="/features/order-book">
+    Order book visualization with bids/asks and recent trades
+  </Card>
+</CardGroup>
+
+## TradeView Component
+
+The chart component provides interactive price visualization:
+
+```tsx TradeView.tsx
+const timeOptions = [
+  { label: "1m", value: "1min" },
+  { label: "1H", value: "1h" },
+  { label: "1D", value: "1d" },
+  { label: "1W", value: "1w" },
+];
+
+export const TradeView = ({ market }: { market: string }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartManagerRef = useRef<ChartManager | null>(null);
+  const [selectedTime, setSelectedTime] = useState("1m");
+
+  const fetchKlineData = useCallback(async (interval: string) => {
+    const klineData = await getKlines(
+      market,
+      interval,
+      Math.floor((new Date().getTime() - 1000 * 60 * 60 * 24 * 7) / 1000)
+    );
+
+    if (chartRef.current && klineData.length > 0) {
+      if (chartManagerRef.current) {
+        chartManagerRef.current.destroy();
+      }
+
+      const chartManager = new ChartManager(
+        chartRef.current,
+        cleanedKlineData,
+        { background: "#121212", color: "white" }
+      );
+      chartManagerRef.current = chartManager;
+    }
+  }, [market]);
+
+  return (
+    <div className="h-full bg-container-bg border-container-border rounded-xl">
+      <div ref={chartRef} className="w-full h-full"></div>
+    </div>
+  );
+};
+```
+
+### Key Features
+
+<Tabs>
+  <Tab title="Timeframe Selection">
+    Users can switch between multiple timeframes:
+    - **1m**: 1-minute candles
+    - **1H**: 1-hour candles
+    - **1D**: Daily candles
+    - **1W**: Weekly candles
+  </Tab>
+  
+  <Tab title="Data Fetching">
+    The component fetches historical kline data from the last 7 days and automatically refreshes when the timeframe changes.
+  </Tab>
+  
+  <Tab title="Chart Management">
+    Uses `ChartManager` class to initialize and manage the lightweight-charts instance with proper cleanup on unmount.
+  </Tab>
+</Tabs>
+
+## Real-Time Updates
+
+<Note>
+  Both the chart and order book receive real-time updates through WebSocket connections managed by the `WsManager` singleton.
+</Note>
+
+## Usage Example
+
+```tsx
+import { TradeInterface } from "@/components/TradeInterface";
+
+function TradingPage() {
+  return (
+    <div className="container">
+      <TradeInterface market="SOL_USDC" />
+    </div>
+  );
+}
+```
+
+## Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `market` | `string` | Market identifier (e.g., "SOL_USDC") |
+
+## Responsive Behavior
+
+<Warning>
+  On mobile devices, the layout switches to a stacked view. Ensure adequate vertical space is available for both components.
+</Warning>
+
+## Best Practices
+
+<Tip>
+  - Always provide a valid market identifier
+  - Ensure WebSocket connection is established before mounting
+  - Handle component cleanup properly to avoid memory leaks
+  - Consider implementing error boundaries for production use
+</Tip>
+
+## Related Components
+
+- [Order Book](/features/order-book) - Depth visualization and recent trades
+- [Charts](/features/charts) - Chart manager and candlestick implementation
+- [Swap Interface](/features/swap-interface) - Order placement interface

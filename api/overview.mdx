@@ -1,0 +1,124 @@
+---
+title: 'API Overview'
+description: 'Integration guide for Exchange Web backend API'
+---
+
+## Introduction
+
+Exchange Web provides a comprehensive REST API and WebSocket connection for real-time cryptocurrency trading data. The backend powers market data retrieval, order placement, and live updates for order books and trades.
+
+## Base URLs
+
+<ParamField path="REST API" type="string">
+  ```
+  https://exchange.jogeshwar.xyz/backend/api/v1
+  ```
+</ParamField>
+
+<ParamField path="WebSocket" type="string">
+  ```
+  wss://exchange.jogeshwar.xyz/ws
+  ```
+</ParamField>
+
+## Authentication
+
+The API uses `user_id` based authentication. Create a user account first:
+
+```typescript
+import { createUser } from './utils/requests';
+
+const userResponse = await createUser();
+const userId = userResponse.user_id;
+```
+
+Include the `user_id` in order creation requests for authentication.
+
+## Available Endpoints
+
+The REST API provides the following endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/depth` | GET | Retrieve order book depth for a market |
+| `/trades` | GET | Get recent trades for a market |
+| `/klines` | GET | Fetch candlestick (OHLCV) data |
+| `/tickers` | GET | Get all market tickers |
+| `/ticker` | GET | Get specific market ticker |
+| `/order` | POST | Create a new order |
+| `/users` | POST | Create a new user account |
+
+<Note>
+  All market symbols follow the format: `BASE_QUOTE` (e.g., `BTC_USD`, `ETH_USD`)
+</Note>
+
+## WebSocket Events
+
+Real-time data is available through WebSocket subscriptions:
+
+- **depth** - Order book updates
+- **trade** - Live trade executions
+
+Connect to the WebSocket URL and send SUBSCRIBE/UNSUBSCRIBE messages to manage your data streams.
+
+## Quick Start
+
+<CodeGroup>
+
+```typescript REST API Example
+import { getTicker, createOrder } from './utils/requests';
+
+// Get market ticker
+const ticker = await getTicker('BTC_USD');
+console.log(`BTC price: ${ticker.lastPrice}`);
+
+// Create an order
+const order = {
+  market: 'BTC_USD',
+  side: 'buy',
+  quantity: 0.01,
+  price: 50000,
+  userId: 'your-user-id'
+};
+
+const orderId = await createOrder(order);
+```
+
+```typescript WebSocket Example
+import { WsManager } from './utils/ws_manager';
+
+const wsManager = WsManager.getInstance();
+
+// Subscribe to depth updates
+wsManager.registerCallback('depth', (data) => {
+  console.log('Bids:', data.bids);
+  console.log('Asks:', data.asks);
+}, 'depth-callback-id');
+
+wsManager.sendMessage({
+  method: 'SUBSCRIBE',
+  params: ['depth.BTC_USD']
+});
+```
+
+</CodeGroup>
+
+## Rate Limits
+
+<Note>
+  Please implement appropriate rate limiting in your application to avoid overwhelming the backend. Consider caching frequently accessed data like tickers.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="REST Endpoints" icon="code" href="/api/rest-endpoints">
+    Detailed documentation for all REST API endpoints
+  </Card>
+  <Card title="WebSocket Events" icon="bolt" href="/api/websocket-events">
+    Real-time data streaming with WebSocket
+  </Card>
+  <Card title="Data Types" icon="brackets-curly" href="/api/data-types">
+    TypeScript interfaces and data structures
+  </Card>
+</CardGroup>

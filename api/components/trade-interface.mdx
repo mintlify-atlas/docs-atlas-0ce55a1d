@@ -1,0 +1,143 @@
+---
+title: 'TradeInterface'
+description: 'Composite trading interface combining chart view and order book'
+---
+
+## Overview
+
+The `TradeInterface` component is a layout container that combines the `TradeView` and `Depth` components into a unified trading interface. It provides a responsive grid layout for displaying charts and market depth data.
+
+## Props
+
+<ParamField path="market" type="string" required>
+  The market identifier for the trading pair (e.g., "SOL_USDC")
+</ParamField>
+
+## Component Composition
+
+The component renders two main child components:
+
+<Accordion title="TradeView Component">
+  Displays the main trading chart and price visualization. Takes up 3/4 of the width on desktop layouts.
+  
+  **Props passed:**
+  - `market`: Forwarded from parent component
+</Accordion>
+
+<Accordion title="Depth Component">
+  Shows order book and recent trades data. Takes up 1/4 of the width on desktop layouts.
+  
+  **Props passed:**
+  - `market`: Forwarded from parent component
+</Accordion>
+
+## Layout Structure
+
+### Responsive Grid
+
+The component uses CSS Grid for responsive layout:
+
+```tsx
+<div className="grid grid-rows-[600px_1fr] grid-cols-1 md:grid-cols-[3fr_1fr] gap-2">
+  <TradeView market={market} />
+  <Depth market={market} />
+</div>
+```
+
+<Tabs>
+  <Tab title="Mobile Layout (< 768px)">
+    - **Single column**: Components stack vertically
+    - **First row**: TradeView at 600px height
+    - **Second row**: Depth takes remaining space
+  </Tab>
+  
+  <Tab title="Desktop Layout (≥ 768px)">
+    - **Two columns**: 3:1 ratio (TradeView:Depth)
+    - **Fixed height**: 600px for first row
+    - **Gap**: 8px spacing between components
+  </Tab>
+</Tabs>
+
+## Usage Example
+
+```tsx
+import { TradeInterface } from '@/components/TradeInterface';
+
+function MarketPage() {
+  const marketId = "SOL_USDC";
+  
+  return (
+    <div className="container">
+      <TradeInterface market={marketId} />
+    </div>
+  );
+}
+```
+
+## Component Hierarchy
+
+```
+TradeInterface
+├── TradeView
+│   └── (Trading chart and price data)
+└── Depth
+    ├── OrderBook (Tab 1)
+    └── RecentTrades (Tab 2)
+```
+
+## Implementation Details
+
+### Props Forwarding
+
+The component acts as a simple container that forwards the `market` prop to its children:
+
+```tsx
+export const TradeInterface = ({ market }: { market: string }) => {
+  return (
+    <div className="grid grid-rows-[600px_1fr] grid-cols-1 md:grid-cols-[3fr_1fr] gap-2">
+      <TradeView market={market as string} />
+      <Depth market={market as string} />
+    </div>
+  );
+};
+```
+
+<Note>
+  The component has no internal state or side effects - it's purely presentational and focuses on layout.
+</Note>
+
+## Design Considerations
+
+### Fixed Height Strategy
+
+The 600px height for the first row ensures:
+- Consistent chart visibility
+- Adequate space for price action
+- Prevents excessive vertical scrolling
+
+### Responsive Breakpoint
+
+The `md:` breakpoint (768px) was chosen to:
+- Prioritize readability on smaller screens
+- Maximize chart space on desktop
+- Balance order book visibility
+
+## Source Code Reference
+
+See implementation in: `apps/web/src/components/TradeInterface.tsx:1-12`
+
+<Accordion title="Full Component Code">
+  ```tsx
+  import { Depth } from "./Depth";
+  import { TradeView } from "./trade_interface/TradeView";
+  
+  export const TradeInterface = ({ market }: { market: string }) => {
+    return (
+      <div className="grid grid-rows-[600px_1fr] grid-cols-1 md:grid-cols-[3fr_1fr] gap-2">
+        <TradeView market={market as string} />
+        <Depth market={market as string} />
+      </div>
+    );
+  };
+  ```
+</Accordion>

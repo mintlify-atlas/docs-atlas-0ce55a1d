@@ -1,0 +1,349 @@
+---
+title: 'Swap Interface'
+description: 'Order placement interface for buying and selling with limit and market orders'
+icon: 'arrow-right-arrow-left'
+---
+
+## Overview
+
+The `SwapInterface` component provides a comprehensive order placement interface with support for both limit and market orders. It features real-time fee calculation, position sizing, and dynamic price inputs.
+
+## Component Structure
+
+The swap interface manages all order placement logic:
+
+```tsx SwapInterface.tsx
+import { useState, useEffect, useContext } from "react";
+import { createOrder } from "../utils/requests";
+import { TradesContext } from "../state/TradesProvider";
+
+export const SwapInterface = ({ market }: { market: string }) => {
+  const { price } = useContext(TradesContext);
+  const currentPrice = parseFloat(price ?? "0");
+
+  const [isBuyMode, setIsBuyMode] = useState(true);
+  const [orderType, setOrderType] = useState("Limit");
+  const [limitPrice, setLimitPrice] = useState(currentPrice);
+  const [size, setSize] = useState("");
+  const [maxUSD, setMaxUSD] = useState(0.0);
+  const [fees, setFees] = useState(0.0);
+  const [position, setPosition] = useState(0.0);
+
+  // Calculate fees and position
+  useEffect(() => {
+    const price = orderType === "Market" ? currentPrice : limitPrice;
+    const calculatedValue = price * Number(size || 0);
+    const calculatedFees = calculatedValue * 0.001; // 0.1% fees
+    setMaxUSD(calculatedValue);
+    setFees(calculatedFees);
+    setPosition(Number(size || 0));
+  }, [size, limitPrice, orderType, currentPrice]);
+
+  const handleCreateOrder = async () => {
+    const order = {
+      market,
+      side: isBuyMode ? "BUY" : "SELL",
+      quantity: Number(size),
+      price: orderType === "Market" ? currentPrice : limitPrice,
+      userId: localStorage.getItem("user_id") ?? "test_user",
+    };
+
+    const response = await createOrder(order);
+    toast.success("Order created successfully!");
+  };
+
+  return (
+    <div className="h-fit lg:h-[600px]">
+      {/* UI implementation */}
+    </div>
+  );
+};
+```
+
+## Order Types
+
+<Tabs>
+  <Tab title="Limit Orders">
+    Limit orders allow users to specify the exact price at which they want to buy or sell:
+
+    ```tsx
+    {orderType === "Limit" && (
+      <div className="flex flex-col">
+        <span className="text-text-tertiary">Limit Price</span>
+        <input
+          type="number"
+          step={0.01}
+          value={limitPrice}
+          onChange={(e) => setLimitPrice(Number(e.target.value))}
+          className="bg-input-bg text-text-input rounded-lg"
+        />
+      </div>
+    )}
+    ```
+
+    <Note>
+      Limit price can be adjusted with 0.01 precision for fine-tuned order placement.
+    </Note>
+  </Tab>
+
+  <Tab title="Market Orders">
+    Market orders execute immediately at the current market price:
+
+    ```tsx
+    {orderType === "Market" && (
+      <div className="flex flex-col">
+        <span className="text-text-tertiary">Market Price</span>
+        <div className="bg-input-bg rounded-lg px-2 h-[32px]">
+          Market Price
+        </div>
+      </div>
+    )}
+    ```
+
+    <Warning>
+      Market orders use the current price from `TradesContext` and execute immediately.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Buy/Sell Toggle
+
+The interface provides a visual toggle between buy and sell modes:
+
+```tsx
+<div className="h-[40px] w-full inline-flex">
+  <div
+    className={`flex items-center justify-center flex-1 cursor-pointer ${
+      isBuyMode
+        ? "text-black bg-positive-green-bg"
+        : "text-container-bg"
+    }`}
+    onClick={() => setIsBuyMode(true)}
+  >
+    <span>Buy</span>
+  </div>
+  <div
+    className={`flex items-center justify-center flex-1 cursor-pointer ${
+      !isBuyMode
+        ? "text-black bg-negative-red-bg"
+        : "text-negative-red"
+    }`}
+    onClick={() => setIsBuyMode(false)}
+  >
+    <span>Sell</span>
+  </div>
+</div>
+```
+
+## Position Sizing
+
+<CardGroup cols={2}>
+  <Card title="Size Input" icon="scale-balanced">
+    Enter the amount in base currency (e.g., SOL)
+  </Card>
+  <Card title="USD Value" icon="dollar-sign">
+    Calculated automatically based on price and size
+  </Card>
+</CardGroup>
+
+### Bidirectional Calculation
+
+Users can input either size or USD value:
+
+```tsx
+// Size input
+<input
+  type="number"
+  step={0.001}
+  value={size}
+  onChange={(e) => setSize(e.target.value)}
+/>
+
+// USD input (calculates size)
+<input
+  type="number"
+  value={maxUSD}
+  onChange={(e) => {
+    const newUSDValue = Number(e.target.value);
+    setMaxUSD(newUSDValue);
+    if (limitPrice > 0) {
+      const newSize = newUSDValue / limitPrice;
+      setSize(newSize.toFixed(6));
+    }
+  }}
+/>
+```
+
+## Fee Calculation
+
+Fees are calculated in real-time at 0.1% of the order value:
+
+```tsx
+useEffect(() => {
+  const price = orderType === "Market" ? currentPrice : limitPrice;
+  const calculatedValue = price * Number(size || 0);
+  const calculatedFees = calculatedValue * 0.001; // 0.1% fees
+  setMaxUSD(calculatedValue);
+  setFees(calculatedFees);
+  setPosition(Number(size || 0));
+}, [size, limitPrice, orderType, currentPrice]);
+```
+
+<Note>
+  Fees are displayed in USD and update automatically as the order size or price changes.
+</Note>
+
+## Order Details Display
+
+```tsx
+<div className="flex flex-col space-y-2">
+  <span className="flex justify-between">
+    <div className="text-text-secondary">Fees (0.1%)</div>
+    <div className="text-text-default">${fees.toFixed(2)}</div>
+  </span>
+  <span className="flex justify-between">
+    <div className="text-text-secondary">Position</div>
+    <div className="text-text-default">{position.toFixed(2)} SOL</div>
+  </span>
+</div>
+```
+
+## Order Validation
+
+The component validates inputs before submission:
+
+```tsx
+const handleCreateOrder = async () => {
+  const quantity = Number(size);
+
+  // Validate size
+  if (!quantity || quantity <= 0) {
+    toast.error("Please enter a valid size greater than zero.");
+    return;
+  }
+
+  // Validate limit price
+  if (orderType === "Limit" && (limitPrice <= 0 || isNaN(limitPrice))) {
+    toast.error("Please enter a valid limit price.");
+    return;
+  }
+
+  const order: CreateOrder = {
+    market,
+    side: isBuyMode ? "BUY" : "SELL",
+    quantity,
+    price: orderType === "Market" ? currentPrice : limitPrice,
+    userId: localStorage.getItem("user_id") ?? "test_user",
+  };
+
+  try {
+    await createOrder(order);
+    toast.success("Order created successfully!");
+  } catch (error) {
+    toast.error("Error creating order!");
+  }
+};
+```
+
+## Order Button
+
+The submit button changes color based on buy/sell mode:
+
+```tsx
+<button
+  onClick={handleCreateOrder}
+  className={`w-full h-[44px] rounded-xl ${
+    isBuyMode
+      ? "bg-positive-green/80 hover:bg-positive-green-hover text-black"
+      : "bg-negative-red/80 hover:bg-negative-red-hover text-black"
+  }`}
+>
+  {isBuyMode ? <span>Buy</span> : <span>Sell</span>}
+</button>
+```
+
+## CreateOrder Type
+
+```typescript
+type CreateOrder = {
+  market: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  userId: string;
+};
+```
+
+## Usage Example
+
+```tsx
+import { SwapInterface } from "@/components/SwapInterface";
+import { TradesProvider } from "@/state/TradesProvider";
+
+function TradingPage() {
+  return (
+    <TradesProvider>
+      <div className="grid grid-cols-[3fr_1fr]">
+        <TradeInterface market="SOL_USDC" />
+        <SwapInterface market="SOL_USDC" />
+      </div>
+    </TradesProvider>
+  );
+}
+```
+
+## Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `market` | `string` | Market identifier (e.g., "SOL_USDC") |
+
+## State Management
+
+<Warning>
+  The component requires `TradesContext` to access the current market price. Ensure it's wrapped in `TradesProvider`.
+</Warning>
+
+## Real-Time Price Updates
+
+<Accordion title="Price Synchronization">
+  The limit price initializes with the current market price and updates automatically:
+  
+  ```tsx
+  const { price } = useContext(TradesContext);
+  const currentPrice = parseFloat(price ?? "0");
+  const [limitPrice, setLimitPrice] = useState(currentPrice);
+  ```
+</Accordion>
+
+## Visual Feedback
+
+<Tip>
+  - Buy mode: Green accent colors
+  - Sell mode: Red accent colors
+  - Disabled state: Gray with reduced opacity
+  - Hover states: Brightened colors for interactivity
+</Tip>
+
+## Error Handling
+
+<Accordion title="Validation Messages">
+  - **Invalid size**: "Please enter a valid size greater than zero."
+  - **Invalid limit price**: "Please enter a valid limit price."
+  - **Order creation failed**: "Error creating order!"
+  - **Success**: "Order created successfully!"
+</Accordion>
+
+## Best Practices
+
+1. **Always validate inputs** before submitting orders
+2. **Provide clear feedback** using toast notifications
+3. **Update fees in real-time** for transparency
+4. **Store user ID** in localStorage for session persistence
+5. **Handle network errors** gracefully with try-catch blocks
+
+## Related Components
+
+- [Trading Interface](/features/trading-interface) - Main trading layout
+- [Order Book](/features/order-book) - View current market depth
+- [Charts](/features/charts) - Analyze price action

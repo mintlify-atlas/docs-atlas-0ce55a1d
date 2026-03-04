@@ -1,0 +1,90 @@
+---
+title: Introduction
+description: A modern, real-time cryptocurrency exchange interface built with React
+---
+
+## What is Exchange Web?
+
+Exchange Web is a professional-grade cryptocurrency trading frontend that provides traders with a complete interface for executing trades, monitoring order books, and analyzing price charts. Built as the user interface for a cryptocurrency exchange platform, it delivers real-time market data and seamless trading experiences.
+
+## Key features
+
+Exchange Web provides everything you need for crypto trading:
+
+<CardGroup cols={2}>
+  <Card title="Real-time order book" icon="book">
+    Live bid/ask data with WebSocket updates showing market depth and liquidity
+  </Card>
+  <Card title="Interactive charts" icon="chart-line">
+    Candlestick charts powered by lightweight-charts with multiple timeframes (1m, 1h, 1d, 1w)
+  </Card>
+  <Card title="Trading interface" icon="arrow-right-arrow-left">
+    Place limit and market orders with live fee calculations and position tracking
+  </Card>
+  <Card title="Recent trades feed" icon="clock-rotate-left">
+    Monitor the latest executed trades with real-time price updates
+  </Card>
+</CardGroup>
+
+## Technology stack
+
+Exchange Web is built with modern web technologies for performance and developer experience:
+
+- **React 18** - Component-based UI with hooks and context
+- **TypeScript** - Type-safe development
+- **Vite** - Lightning-fast build tool and dev server
+- **Tailwind CSS** - Utility-first styling
+- **WebSocket** - Real-time market data streaming
+- **lightweight-charts** - Professional trading charts
+- **Turbo** - Monorepo build system
+- **React Router** - Client-side routing
+
+<Note>
+Exchange Web is part of a monorepo structure with shared UI components and configuration packages.
+</Note>
+
+## Who is Exchange Web for?
+
+Exchange Web is designed for:
+
+- **Developers** building cryptocurrency exchange platforms
+- **Traders** who need a responsive, real-time trading interface
+- **Teams** looking for a production-ready exchange frontend
+- **Projects** requiring a customizable trading UI component
+
+## Architecture
+
+The application follows a modern React architecture:
+
+```tsx
+// Main app structure from apps/web/src/App.tsx
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Trade } from "./pages/Trade";
+import { TradesProvider } from "./state/TradesProvider";
+
+function App() {
+  return (
+    <TradesProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/trade/:market" element={<Trade />} />
+          <Route path="*" element={<Navigate to="/trade/SOL_USDC" />} />
+        </Routes>
+      </BrowserRouter>
+    </TradesProvider>
+  );
+}
+```
+
+The app uses React Context for state management, WebSocket connections for real-time updates, and a component-based architecture for modularity.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get Exchange Web running in under 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed setup instructions and configuration
+  </Card>
+</CardGroup>

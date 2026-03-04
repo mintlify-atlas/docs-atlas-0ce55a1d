@@ -1,0 +1,349 @@
+---
+title: "Request Functions"
+description: "HTTP client utilities for Exchange Web API interactions"
+---
+
+## Overview
+
+The `requests` module provides async functions for interacting with the Exchange Web REST API. All functions use axios for HTTP requests and return typed responses.
+
+## Base URL
+
+```typescript
+const BASE_URL = "https://exchange.jogeshwar.xyz/backend/api/v1";
+```
+
+## Market Data Functions
+
+### getDepth()
+
+Retrieves the current order book depth for a specific market.
+
+```typescript
+async function getDepth(market: string): Promise<Depth>
+```
+
+<ParamField path="market" type="string" required>
+  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+</ParamField>
+
+<ResponseField name="return" type="Depth">
+  Order book depth data
+  - `bids` (array): Array of [price, quantity] tuples for buy orders
+  - `asks` (array): Array of [price, quantity] tuples for sell orders
+  - `lastUpdateId` (string): Sequential update identifier
+</ResponseField>
+
+#### Example
+
+```typescript
+import { getDepth } from "@/utils/requests";
+
+const depth = await getDepth("BTC_USDT");
+console.log("Top bid:", depth.bids[0]); // ["50000.00", "1.5"]
+console.log("Top ask:", depth.asks[0]); // ["50001.00", "2.0"]
+```
+
+### getTrades()
+
+Retrieves recent trades for a specific market.
+
+```typescript
+async function getTrades(market: string): Promise<Trade[]>
+```
+
+<ParamField path="market" type="string" required>
+  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+</ParamField>
+
+<ResponseField name="return" type="Trade[]">
+  Array of recent trade objects:
+  - `id` (number): Unique trade identifier
+  - `isBuyerMaker` (boolean): True if buyer initiated the trade
+  - `price` (string): Trade execution price
+  - `quantity` (string): Trade quantity
+  - `quoteQuantity` (string): Quote asset quantity (price × quantity)
+  - `timestamp` (number): Unix timestamp in milliseconds
+</ResponseField>
+
+#### Example
+
+```typescript
+import { getTrades } from "@/utils/requests";
+
+const trades = await getTrades("BTC_USDT");
+trades.forEach((trade) => {
+  console.log(`${trade.quantity} @ ${trade.price}`);
+});
+```
+
+### getKlines()
+
+Retrieves candlestick (K-line) data for a specific market and time range.
+
+```typescript
+async function getKlines(
+  market: string,
+  interval: string,
+  startTime: number
+): Promise<KLine[]>
+```
+
+<ParamField path="market" type="string" required>
+  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+</ParamField>
+
+<ParamField path="interval" type="string" required>
+  Candlestick interval (e.g., "1m", "5m", "1h", "1d")
+</ParamField>
+
+<ParamField path="startTime" type="number" required>
+  Start time in Unix timestamp (milliseconds)
+</ParamField>
+
+<ResponseField name="return" type="KLine[]">
+  Array of candlestick data sorted by end time:
+  - `open` (string): Opening price
+  - `high` (string): Highest price
+  - `low` (string): Lowest price
+  - `close` (string): Closing price
+  - `volume` (string): Base asset volume
+  - `quoteVolume` (string): Quote asset volume
+  - `start` (string): Candle start time
+  - `end` (string): Candle end time
+  - `trades` (string): Number of trades in this candle
+</ResponseField>
+
+<Note>
+The response is automatically sorted by end time in ascending order.
+</Note>
+
+#### Example
+
+```typescript
+import { getKlines } from "@/utils/requests";
+
+const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+const klines = await getKlines("BTC_USDT", "1h", oneDayAgo);
+
+klines.forEach((candle) => {
+  console.log(`Open: ${candle.open}, Close: ${candle.close}`);
+});
+```
+
+### getTicker()
+
+Retrieves 24-hour ticker data for a specific market.
+
+```typescript
+async function getTicker(market: string): Promise<Ticker>
+```
+
+<ParamField path="market" type="string" required>
+  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+</ParamField>
+
+<ResponseField name="return" type="Ticker">
+  24-hour ticker statistics:
+  - `symbol` (string): Market symbol
+  - `firstPrice` (string): Price 24 hours ago
+  - `lastPrice` (string): Current price
+  - `high` (string): Highest price in 24h
+  - `low` (string): Lowest price in 24h
+  - `priceChange` (string): Absolute price change
+  - `priceChangePercent` (string): Percentage price change
+  - `volume` (string): Base asset volume
+  - `quoteVolume` (string): Quote asset volume
+  - `trades` (string): Number of trades
+</ResponseField>
+
+<Note>
+This function calls `getTickers()` internally and filters for the specific market.
+</Note>
+
+#### Example
+
+```typescript
+import { getTicker } from "@/utils/requests";
+
+const ticker = await getTicker("BTC_USDT");
+console.log(`Current price: ${ticker.lastPrice}`);
+console.log(`24h change: ${ticker.priceChangePercent}%`);
+```
+
+### getTickers()
+
+Retrieves 24-hour ticker data for all markets.
+
+```typescript
+async function getTickers(): Promise<Ticker[]>
+```
+
+<ResponseField name="return" type="Ticker[]">
+  Array of ticker objects for all available markets (see Ticker structure above)
+</ResponseField>
+
+#### Example
+
+```typescript
+import { getTickers } from "@/utils/requests";
+
+const tickers = await getTickers();
+tickers.forEach((ticker) => {
+  console.log(`${ticker.symbol}: ${ticker.lastPrice}`);
+});
+
+// Find top gainers
+const topGainers = tickers
+  .sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
+  .slice(0, 5);
+```
+
+## Trading Functions
+
+### createOrder()
+
+Places a new order on the exchange.
+
+```typescript
+async function createOrder(order: CreateOrder): Promise<string>
+```
+
+<ParamField path="order" type="CreateOrder" required>
+  Order parameters:
+  - `market` (string): Market symbol (e.g., "BTC_USDT")
+  - `side` (string): Order side ("buy" or "sell")
+  - `quantity` (number): Order quantity in base asset
+  - `price` (number): Limit price
+  - `userId` (string): User identifier
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Order creation response from the API
+</ResponseField>
+
+#### Example
+
+```typescript
+import { createOrder } from "@/utils/requests";
+
+const result = await createOrder({
+  market: "BTC_USDT",
+  side: "buy",
+  quantity: 0.1,
+  price: 50000,
+  userId: "user-123",
+});
+
+console.log("Order created:", result);
+```
+
+<Note>
+Ensure the user has sufficient balance before placing orders. The API will reject orders with insufficient funds.
+</Note>
+
+## User Management Functions
+
+### createUser()
+
+Creates a new user account on the exchange.
+
+```typescript
+async function createUser(): Promise<UserId>
+```
+
+<ResponseField name="return" type="UserId">
+  User creation response:
+  - `status` (string): Creation status
+  - `user_id` (string): Newly created user identifier
+</ResponseField>
+
+#### Example
+
+```typescript
+import { createUser } from "@/utils/requests";
+
+const newUser = await createUser();
+console.log(`New user created: ${newUser.user_id}`);
+
+// Store user_id in local storage or state management
+localStorage.setItem("userId", newUser.user_id);
+```
+
+## Error Handling
+
+All functions can throw axios errors. Implement proper error handling:
+
+```typescript
+import { getTicker } from "@/utils/requests";
+import axios from "axios";
+
+try {
+  const ticker = await getTicker("BTC_USDT");
+  console.log(ticker);
+} catch (error) {
+  if (axios.isAxiosError(error)) {
+    console.error("API Error:", error.response?.data);
+    console.error("Status:", error.response?.status);
+  } else {
+    console.error("Unexpected error:", error);
+  }
+}
+```
+
+## Complete Usage Example
+
+```typescript
+import {
+  createUser,
+  getTicker,
+  getDepth,
+  getTrades,
+  getKlines,
+  createOrder,
+} from "@/utils/requests";
+
+async function initializeTrading() {
+  // Create user
+  const user = await createUser();
+  console.log("User ID:", user.user_id);
+
+  // Get market overview
+  const ticker = await getTicker("BTC_USDT");
+  console.log("Current price:", ticker.lastPrice);
+
+  // Get order book
+  const depth = await getDepth("BTC_USDT");
+  console.log("Best bid:", depth.bids[0]);
+  console.log("Best ask:", depth.asks[0]);
+
+  // Get recent trades
+  const trades = await getTrades("BTC_USDT");
+  console.log(`Last ${trades.length} trades loaded`);
+
+  // Get historical data
+  const startTime = Date.now() - 24 * 60 * 60 * 1000;
+  const klines = await getKlines("BTC_USDT", "1h", startTime);
+  console.log(`${klines.length} candles loaded`);
+
+  // Place an order
+  const order = await createOrder({
+    market: "BTC_USDT",
+    side: "buy",
+    quantity: 0.001,
+    price: parseFloat(depth.bids[0][0]) - 100, // 100 below best bid
+    userId: user.user_id,
+  });
+  console.log("Order placed:", order);
+}
+```
+
+## Type Definitions
+
+For complete type definitions, see:
+- `apps/web/src/utils/types.ts`
+- Type interfaces: `Depth`, `Trade`, `KLine`, `Ticker`, `CreateOrder`, `UserId`
+
+## Source Location
+
+`apps/web/src/utils/requests.ts`

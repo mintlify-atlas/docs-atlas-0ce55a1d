@@ -1,0 +1,153 @@
+---
+title: Development Setup
+description: Set up your local development environment for Exchange Web
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+<Note>
+  Exchange Web requires **Node.js 18 or higher** as specified in the project's engine requirements.
+</Note>
+
+- **Node.js**: Version 18 or higher
+- **Yarn**: Version 1.22.22 (specified as the package manager)
+- **Git**: For cloning the repository
+
+## Clone the Repository
+
+<Steps>
+  <Step title="Clone the project">
+    ```bash
+    git clone <repository-url>
+    cd exchange-web
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Exchange Web uses Yarn workspaces for dependency management:
+    
+    ```bash
+    yarn install
+    ```
+    
+    This will install all dependencies for the monorepo, including all apps and packages.
+  </Step>
+</Steps>
+
+## Understanding the Monorepo Structure
+
+Exchange Web is organized as a **Turborepo monorepo** with the following structure:
+
+```
+exchange-web/
+├── apps/
+│   └── web/              # Main React application (Vite + React)
+├── packages/
+│   ├── ui/               # Shared UI components
+│   ├── eslint-config/    # Shared ESLint configuration
+│   └── typescript-config/ # Shared TypeScript configuration
+├── package.json          # Root package.json with workspace configuration
+└── turbo.json           # Turborepo configuration
+```
+
+### Key Components
+
+- **apps/web**: The main trading frontend application built with:
+  - React 18.3+
+  - Vite 5.4+ for build tooling
+  - TypeScript 5.5+
+  - TailwindCSS for styling
+  - React Router for routing
+  - Lightweight Charts for trading charts
+
+- **packages/**: Shared packages used across the monorepo
+  - Enables code reuse and consistent configuration
+
+## Running the Development Server
+
+<Steps>
+  <Step title="Start the dev server">
+    From the root directory, run:
+    
+    <CodeGroup>
+    ```bash Turborepo (Recommended)
+    yarn dev
+    ```
+    
+    ```bash Direct (apps/web only)
+    cd apps/web
+    yarn dev
+    ```
+    </CodeGroup>
+    
+    The Turborepo command (`yarn dev`) will start all development servers in the monorepo with optimized caching.
+  </Step>
+
+  <Step title="Access the application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:5173
+    ```
+    
+    Vite's default port is 5173, but it will use the next available port if that's taken.
+  </Step>
+</Steps>
+
+<Note>
+  Vite provides hot module replacement (HMR) out of the box, so your changes will be reflected instantly in the browser without a full page reload.
+</Note>
+
+## Available Scripts
+
+From the **root directory**, you can run these Turborepo commands:
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| Development | `yarn dev` | Start development servers for all apps |
+| Build | `yarn build` | Build all apps and packages for production |
+| Lint | `yarn lint` | Run ESLint across the entire monorepo |
+| Format | `yarn format` | Format code with Prettier |
+
+### App-Specific Scripts (apps/web)
+
+From the `apps/web` directory:
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| Development | `yarn dev` | Start Vite dev server |
+| Build | `yarn build` | TypeScript compilation + Vite build |
+| Preview | `yarn preview` | Preview production build locally |
+| Lint | `yarn lint` | Run ESLint on the web app |
+
+## Development Workflow
+
+<Warning>
+  Always run `yarn install` after pulling new changes to ensure dependencies are up to date.
+</Warning>
+
+1. **Make changes** to your code in the `apps/web/src` directory
+2. **Hot reload** automatically updates your browser
+3. **Lint your code** with `yarn lint` before committing
+4. **Format your code** with `yarn format` to maintain consistency
+
+## Turborepo Benefits
+
+Turborepo provides several advantages for development:
+
+- **Incremental builds**: Only rebuilds what changed
+- **Remote caching**: Share build caches across your team
+- **Parallel execution**: Run tasks across workspaces in parallel
+- **Task pipelines**: Automatic dependency ordering
+
+The `turbo.json` configuration defines task dependencies and caching strategies for optimal performance.
+
+## Next Steps
+
+Now that your environment is set up, you can:
+
+- Learn about [building for production](/development/building)
+- Explore [deployment options](/development/deployment)
+- Review the codebase structure and start developing

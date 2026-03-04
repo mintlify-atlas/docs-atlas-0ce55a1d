@@ -1,0 +1,419 @@
+---
+title: 'Component Structure'
+description: 'Detailed overview of React components in Exchange Web'
+---
+
+## Component Architecture
+
+Exchange Web uses a modular component architecture with clear separation of concerns. Components are organized by feature and responsibility.
+
+## Main Components
+
+The application consists of five main top-level components:
+
+<CardGroup cols={2}>
+  <Card title="SwapInterface" icon="arrows-rotate">
+    Order entry interface for buying/selling
+  </Card>
+  <Card title="TradeInterface" icon="chart-candlestick">
+    Trading view with chart and order book
+  </Card>
+  <Card title="Depth" icon="layer-group">
+    Order book and recent trades display
+  </Card>
+  <Card title="MarketBar" icon="chart-line">
+    Market information and price ticker
+  </Card>
+  <Card title="NetBar" icon="network-wired">
+    Network status and user information
+  </Card>
+</CardGroup>
+
+## SwapInterface Component
+
+The SwapInterface provides order entry functionality with support for limit and market orders.
+
+### Key Features
+
+- Buy/Sell mode toggle
+- Order type selection (Limit/Market)
+- Real-time fee calculation
+- Position sizing
+- Price integration from context
+
+### Component Interface
+
+```tsx
+interface SwapInterfaceProps {
+  market: string;
+}
+
+export const SwapInterface = ({ market }: SwapInterfaceProps) => {
+  // Implementation
+}
+```
+
+### State Management
+
+From apps/web/src/components/SwapInterface.tsx:7-17:
+
+```tsx
+const { price } = useContext(TradesContext);
+const currentPrice = parseFloat(price ?? "0");
+
+const [isBuyMode, setIsBuyMode] = useState(true);
+const [orderType, setOrderType] = useState("Limit");
+const [limitPrice, setLimitPrice] = useState(currentPrice);
+const [size, setSize] = useState("");
+const [maxUSD, setMaxUSD] = useState(0.0);
+const [fees, setFees] = useState(0.0);
+const [position, setPosition] = useState(0.0);
+```
+
+### Order Creation
+
+From apps/web/src/components/SwapInterface.tsx:29-62:
+
+```tsx
+const handleCreateOrder = async () => {
+  const quantity = Number(size);
+
+  if (!quantity || quantity <= 0) {
+    toast.error("Please enter a valid size greater than zero.");
+    return;
+  }
+
+  if (orderType === "Limit" && (limitPrice <= 0 || isNaN(limitPrice))) {
+    toast.error("Please enter a valid limit price.");
+    return;
+  }
+
+  const side = isBuyMode ? "BUY" : "SELL";
+  const orderPrice = orderType === "Market" ? currentPrice : limitPrice;
+
+  const order: CreateOrder = {
+    market,
+    side,
+    quantity,
+    price: orderPrice,
+    userId: localStorage.getItem("user_id") ?? "test_user",
+  };
+
+  try {
+    const response = await createOrder(order);
+    console.log("Order created:", response);
+    toast.success("Order created successfully!");
+  } catch (error) {
+    console.error("Error creating order:", error);
+    toast.error("Error creating order!");
+  }
+};
+```
+
+## TradeInterface Component
+
+A composition component that combines the trading chart and order book display.
+
+### Component Code
+
+From apps/web/src/components/TradeInterface.tsx:1-12:
+
+```tsx
+import { Depth } from "./Depth";
+import { TradeView } from "./trade_interface/TradeView";
+
+export const TradeInterface = ({ market }: { market: string }) => {
+  return (
+    <div className="grid grid-rows-[600px_1fr] grid-cols-1 md:grid-cols-[3fr_1fr] gap-2">
+      <TradeView market={market as string} />
+      <Depth market={market as string} />
+    </div>
+  );
+};
+```
+
+### Layout
+
+- **Desktop**: Side-by-side layout (3:1 ratio)
+- **Mobile**: Stacked layout
+- **Chart Area**: Fixed 600px height
+- **Depth Area**: Responsive height
+
+## Depth Component
+
+Manages order book and recent trades with real-time WebSocket updates.
+
+### Props Interface
+
+```tsx
+interface DepthProps {
+  market: string;
+}
+```
+
+### State from Context
+
+From apps/web/src/components/Depth.tsx:14-22:
+
+```tsx
+const {
+  setTrades,
+  setBids,
+  setAsks,
+  setPrice,
+  setTotalBidSize,
+  setTotalAskSize,
+  orderBookRef,
+} = useContext(TradesContext);
+```
+
+### WebSocket Integration
+
+The component registers callbacks for depth and trade updates:
+
+From apps/web/src/components/Depth.tsx:24-96:
+
+```tsx
+useEffect(() => {
+  WsManager.getInstance().registerCallback(
+    "depth",
+    (data: any) => {
+      console.log("depth has been updated");
+      console.log(data);
+
+      setBids((originalBids) => {
+        let bidsAfterUpdate = [...(originalBids || [])];
+
+        // Update existing bids
+        for (let i = 0; i < bidsAfterUpdate.length; i++) {
+          for (let j = 0; j < data.bids.length; j++) {
+            if (bidsAfterUpdate[i][0] === data.bids[j][0]) {
+              bidsAfterUpdate[i][1] = data.bids[j][1];
+              if (Number(bidsAfterUpdate[i][1]) === 0) {
+                bidsAfterUpdate.splice(i, 1);
+              }
+              break;
+            }
+          }
+        }
+
+        // Add new bids
+        for (let j = 0; j < data.bids.length; j++) {
+          if (
+            Number(data.bids[j][1]) !== 0 &&
+            !bidsAfterUpdate.map((x) => x[0]).includes(data.bids[j][0])
+          ) {
+            bidsAfterUpdate.push(data.bids[j]);
+            break;
+          }
+        }
+        
+        bidsAfterUpdate.sort((x, y) =>
+          Number(y[0]) < Number(x[0]) ? -1 : 1
+        );
+
+        bidsAfterUpdate = bidsAfterUpdate.slice(-30);
+        return bidsAfterUpdate;
+      });
+
+      // Similar logic for asks...
+    },
+    `DEPTH-${market}`
+  );
+
+  // Register trade callback...
+}, [market, ...dependencies]);
+```
+
+### Tab Interface
+
+From apps/web/src/components/Depth.tsx:11-12:
+
+```tsx
+const [activeTab, setActiveTab] = useState("orderbook");
+```
+
+Users can toggle between:
+- **Order Book**: Live bid/ask ladder
+- **Recent Trades**: Trade history stream
+
+## MarketBar Component
+
+Displays current market information and statistics.
+
+### Context Integration
+
+From apps/web/src/components/MarketBar.tsx:6-8:
+
+```tsx
+const { ticker, setTicker, stats, setStats, price } =
+  useContext(TradesContext);
+```
+
+### Data Fetching
+
+From apps/web/src/components/MarketBar.tsx:10-18:
+
+```tsx
+useEffect(() => {
+  getTicker(market).then(setTicker);
+
+  setStats([
+    { label: "24h Volume", value: `$${ticker?.volume.toLocaleString()}` },
+    { label: "24h High", value: `$${ticker?.high}` },
+    { label: "24h Low", value: `$${ticker?.low}` },
+  ]);
+}, [market, setStats, setTicker, ticker?.high, ticker?.low, ticker?.volume]);
+```
+
+### Displayed Information
+
+- Current price
+- 24h price change percentage
+- 24h trading volume
+- 24h high/low prices
+- Market pair (SOL/USDC)
+
+## Component Composition
+
+Components follow React best practices:
+
+### Props Pattern
+
+<CodeGroup>
+```tsx Market Prop
+// Market identifier passed to all trading components
+interface ComponentProps {
+  market: string;
+}
+```
+
+```tsx Children Pattern
+// TradesProvider wraps children with context
+interface TradesProviderProps {
+  children: ReactNode;
+}
+```
+</CodeGroup>
+
+### Context Consumption
+
+All major components consume TradesContext:
+
+```tsx
+import { useContext } from "react";
+import { TradesContext } from "../state/TradesProvider";
+
+const { price, bids, asks, trades } = useContext(TradesContext);
+```
+
+## TypeScript Interfaces
+
+From apps/web/src/utils/types.ts:
+
+<AccordionGroup>
+  <Accordion title="Trade Interface">
+    ```tsx
+    export interface Trade {
+      id: number;
+      isBuyerMaker: boolean;
+      price: string;
+      quantity: string;
+      quoteQuantity: string;
+      timestamp: number;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Depth Interface">
+    ```tsx
+    export interface Depth {
+      bids: [string, string][];
+      asks: [string, string][];
+      lastUpdateId: string;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="CreateOrder Interface">
+    ```tsx
+    export interface CreateOrder {
+      market: string;
+      side: string;
+      quantity: number;
+      price: number;
+      userId: string;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Ticker Interface">
+    ```tsx
+    export interface Ticker {
+      firstPrice: string;
+      high: string;
+      lastPrice: string;
+      low: string;
+      priceChange: string;
+      priceChangePercent: string;
+      quoteVolume: string;
+      symbol: string;
+      trades: string;
+      volume: string;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Component Lifecycle
+
+### Initialization Flow
+
+<Steps>
+  <Step title="Mount">
+    Component mounts and retrieves context
+  </Step>
+  <Step title="Register Callbacks">
+    Subscribe to WebSocket events via WsManager
+  </Step>
+  <Step title="Fetch Initial Data">
+    Load initial order book and trade history via REST API
+  </Step>
+  <Step title="Receive Updates">
+    Process real-time WebSocket messages
+  </Step>
+  <Step title="Cleanup">
+    Unsubscribe from events on unmount
+  </Step>
+</Steps>
+
+### Cleanup Example
+
+From apps/web/src/components/Depth.tsx:180-192:
+
+```tsx
+return () => {
+  WsManager.getInstance().deRegisterCallback("depth", `DEPTH-${market}`);
+  WsManager.getInstance().sendMessage({
+    method: "UNSUBSCRIBE",
+    params: [`depth.${market}`],
+  });
+
+  WsManager.getInstance().deRegisterCallback("trade", `TRADE-${market}`);
+  WsManager.getInstance().sendMessage({
+    method: "UNSUBSCRIBE",
+    params: [`trade.${market}`],
+  });
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="State Management" href="/architecture/state-management">
+    Learn how TradesProvider manages global state
+  </Card>
+  <Card title="WebSocket" href="/architecture/websocket">
+    Understand real-time data communication
+  </Card>
+</CardGroup>

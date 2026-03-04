@@ -1,0 +1,360 @@
+---
+title: 'Charts'
+description: 'Candlestick chart implementation using lightweight-charts'
+icon: 'chart-candlestick'
+---
+
+## Overview
+
+Exchange Web uses TradingView's `lightweight-charts` library for displaying real-time candlestick charts. The `ChartManager` class provides a clean abstraction for chart initialization and updates.
+
+## ChartManager Class
+
+The `ChartManager` class handles chart lifecycle and real-time updates:
+
+```typescript chart_manager.ts
+import {
+  ColorType,
+  createChart as createLightWeightChart,
+  CrosshairMode,
+  ISeriesApi,
+  LineStyle,
+  UTCTimestamp,
+} from "lightweight-charts";
+
+export class ChartManager {
+  private candleSeries: ISeriesApi<"Candlestick">;
+  private lastUpdateTime: number = 0;
+  private chart: any;
+
+  constructor(
+    ref: any,
+    initialData: any[],
+    layout: { background: string; color: string }
+  ) {
+    const chart = createLightWeightChart(ref, {
+      autoSize: true,
+      overlayPriceScales: {
+        ticksVisible: true,
+        borderVisible: true,
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: "#707070",
+          width: 1,
+          style: LineStyle.LargeDashed,
+        },
+        horzLine: {
+          color: "#707070",
+          width: 1,
+          style: LineStyle.LargeDashed,
+        },
+      },
+      rightPriceScale: {
+        visible: true,
+        ticksVisible: true,
+        entireTextOnly: true,
+        borderVisible: true,
+        borderColor: "#555",
+        textColor: "#fff",
+      },
+      grid: {
+        horzLines: { visible: true, color: "#262626" },
+        vertLines: { visible: true, color: "#262626" },
+      },
+      layout: {
+        background: { type: ColorType.Solid, color: layout.background },
+        textColor: "white",
+      },
+      timeScale: { borderColor: "#555" },
+    });
+
+    // Create candlestick series
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: "#34cb88",      // Green for bullish
+      downColor: "#ff615c",    // Red for bearish
+      borderVisible: false,
+      wickUpColor: "#5dd5a0",
+      wickDownColor: "#ff887f",
+    });
+
+    this.chart = chart;
+    this.candleSeries = candleSeries;
+
+    // Set initial data
+    this.candleSeries.setData(
+      initialData.map((data) => ({
+        ...data,
+        time: (data.timestamp / 1000) as UTCTimestamp,
+      }))
+    );
+  }
+
+  public update(updatedPrice: any) {
+    if (!this.lastUpdateTime) {
+      this.lastUpdateTime = new Date().getTime();
+    }
+
+    this.candleSeries.update({
+      time: (this.lastUpdateTime / 1000) as UTCTimestamp,
+      close: updatedPrice.close,
+      low: updatedPrice.low,
+      high: updatedPrice.high,
+      open: updatedPrice.open,
+    });
+
+    if (updatedPrice.newCandleInitiated) {
+      this.lastUpdateTime = updatedPrice.time;
+    }
+  }
+
+  public destroy() {
+    this.chart.remove();
+  }
+}
+```
+
+## Configuration
+
+<Tabs>
+  <Tab title="Chart Options">
+    ### Core Settings
+    
+    | Option | Value | Description |
+    |--------|-------|-------------|
+    | `autoSize` | `true` | Auto-resize to container |
+    | `crosshair.mode` | `Normal` | Enable crosshair |
+    | `background` | `#121212` | Dark background |
+    | `textColor` | `white` | White text for contrast |
+  </Tab>
+
+  <Tab title="Candlestick Colors">
+    ### Color Scheme
+    
+    ```typescript
+    {
+      upColor: "#34cb88",      // Bullish candle body
+      downColor: "#ff615c",    // Bearish candle body
+      wickUpColor: "#5dd5a0",  // Bullish wick
+      wickDownColor: "#ff887f" // Bearish wick
+    }
+    ```
+    
+    <Note>
+      Colors match the application's design system for consistency with order book visualization.
+    </Note>
+  </Tab>
+
+  <Tab title="Grid & Scales">
+    ### Grid Lines
+    
+    ```typescript
+    grid: {
+      horzLines: { visible: true, color: "#262626" },
+      vertLines: { visible: true, color: "#262626" },
+    }
+    ```
+    
+    ### Price Scale
+    
+    ```typescript
+    rightPriceScale: {
+      visible: true,
+      ticksVisible: true,
+      borderColor: "#555",
+      textColor: "#fff",
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Usage in TradeView
+
+The `TradeView` component integrates the chart with data fetching:
+
+```tsx TradeView.tsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChartManager } from "../../utils/chart_manager";
+import { getKlines } from "../../utils/requests";
+
+export const TradeView = ({ market }: { market: string }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartManagerRef = useRef<ChartManager | null>(null);
+  const [selectedTime, setSelectedTime] = useState("1m");
+
+  const fetchKlineData = useCallback(async (interval: string) => {
+    const klineData = await getKlines(
+      market,
+      interval,
+      Math.floor((new Date().getTime() - 1000 * 60 * 60 * 24 * 7) / 1000)
+    );
+
+    if (chartRef.current && klineData.length > 0) {
+      // Destroy existing chart
+      if (chartManagerRef.current) {
+        chartManagerRef.current.destroy();
+      }
+
+      // Clean and sort data
+      const cleanedKlineData = klineData
+        .map((x) => ({
+          close: parseFloat(x.close),
+          high: parseFloat(x.high),
+          low: parseFloat(x.low),
+          open: parseFloat(x.open),
+          timestamp: new Date(x.end),
+        }))
+        .sort((x, y) => (x.timestamp > y.timestamp ? 1 : -1));
+
+      // Initialize new chart
+      const chartManager = new ChartManager(
+        chartRef.current,
+        cleanedKlineData,
+        { background: "#121212", color: "white" }
+      );
+
+      chartManagerRef.current = chartManager;
+    }
+  }, [market]);
+
+  useEffect(() => {
+    fetchKlineData(selectedTime);
+
+    // Cleanup on unmount
+    return () => {
+      if (chartManagerRef.current) {
+        chartManagerRef.current.destroy();
+        chartManagerRef.current = null;
+      }
+    };
+  }, [fetchKlineData, selectedTime]);
+
+  return <div ref={chartRef} className="w-full h-full"></div>;
+};
+```
+
+## Data Flow
+
+<Accordion title="Kline Data Fetching">
+  1. **Fetch**: Request kline data for the last 7 days
+  2. **Transform**: Convert string values to numbers
+  3. **Sort**: Ensure chronological order
+  4. **Initialize**: Create chart with cleaned data
+  5. **Update**: Apply real-time updates via `update()` method
+</Accordion>
+
+## Real-Time Updates
+
+<Note>
+  The `update()` method supports incremental candle updates. When `newCandleInitiated` is true, a new candle begins.
+</Note>
+
+```typescript
+chartManager.update({
+  close: 45.67,
+  high: 45.89,
+  low: 45.23,
+  open: 45.34,
+  newCandleInitiated: false, // Update current candle
+});
+```
+
+## Timeframe Options
+
+Supported intervals:
+
+<CardGroup cols={2}>
+  <Card title="1m" icon="clock">
+    1-minute candles for short-term trading
+  </Card>
+  <Card title="1H" icon="clock">
+    1-hour candles for intraday analysis
+  </Card>
+  <Card title="1D" icon="calendar">
+    Daily candles for swing trading
+  </Card>
+  <Card title="1W" icon="calendar-week">
+    Weekly candles for long-term trends
+  </Card>
+</CardGroup>
+
+## KLine Data Structure
+
+```typescript
+type KLine = {
+  close: string;
+  high: string;
+  low: string;
+  open: string;
+  end: string;      // End timestamp
+  start: string;    // Start timestamp
+  trades: number;   // Number of trades
+  volume: string;   // Volume in base currency
+};
+```
+
+## Memory Management
+
+<Warning>
+  Always call `destroy()` when unmounting or reinitializing the chart to prevent memory leaks.
+</Warning>
+
+```typescript
+useEffect(() => {
+  // Chart initialization...
+  
+  return () => {
+    if (chartManagerRef.current) {
+      chartManagerRef.current.destroy();
+      chartManagerRef.current = null;
+    }
+  };
+}, [dependencies]);
+```
+
+## Performance Tips
+
+<Tip>
+  - Limit initial data to 7 days to reduce load time
+  - Use `autoSize: true` for responsive sizing
+  - Destroy and recreate chart when switching timeframes
+  - Debounce window resize events if manually handling size
+</Tip>
+
+## Crosshair Customization
+
+```typescript
+crosshair: {
+  mode: CrosshairMode.Normal,
+  vertLine: {
+    color: "#707070",
+    width: 1,
+    style: LineStyle.LargeDashed,
+  },
+  horzLine: {
+    color: "#707070",
+    width: 1,
+    style: LineStyle.LargeDashed,
+  },
+}
+```
+
+## Common Issues
+
+<Accordion title="Chart not rendering">
+  - Ensure container div has defined width and height
+  - Check that data is properly formatted with UTC timestamps
+  - Verify lightweight-charts is properly installed
+</Accordion>
+
+<Accordion title="Chart not updating">
+  - Confirm `update()` is being called with correct data structure
+  - Check that timestamps are in correct format (UTC seconds)
+  - Ensure chart instance hasn't been destroyed
+</Accordion>
+
+## Related Components
+
+- [Trading Interface](/features/trading-interface) - Main layout integration
+- [Order Book](/features/order-book) - Complementary depth visualization

@@ -1,0 +1,496 @@
+---
+title: 'WebSocket Events'
+description: 'Real-time data streaming with WebSocket subscriptions'
+---
+
+## WebSocket URL
+
+```
+wss://exchange.jogeshwar.xyz/ws
+```
+
+## Connection Management
+
+Exchange Web uses a singleton `WsManager` class to manage WebSocket connections and handle real-time data streams.
+
+### Establishing Connection
+
+```typescript
+import { WsManager } from './utils/ws_manager';
+
+const wsManager = WsManager.getInstance();
+```
+
+The WebSocket connection is automatically established when you get the instance. The manager handles:
+
+- Automatic connection on initialization
+- Message buffering during connection setup
+- Reconnection logic
+- Callback management for different event types
+
+<Note>
+  Messages sent before the connection is fully established are automatically buffered and sent once the connection opens.
+</Note>
+
+### Connection Lifecycle
+
+```typescript
+// The WsManager handles connection internally
+private constructor() {
+  this.ws = new WebSocket(BASE_URL);
+  this.bufferedMessages = [];
+  this.id = 1;
+  this.init();
+}
+
+init() {
+  this.ws.onopen = () => {
+    this.initialized = true;
+    // Flush buffered messages
+    this.bufferedMessages.forEach((message) => {
+      this.ws.send(JSON.stringify(message));
+    });
+    this.bufferedMessages = [];
+  };
+
+  this.ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    const type = message.data.e;
+    // Route to registered callbacks
+  };
+}
+```
+
+---
+
+## Subscription Messages
+
+Subscribe and unsubscribe to market data streams using the following message format.
+
+### Subscribe to Stream
+
+```typescript
+wsManager.sendMessage({
+  method: 'SUBSCRIBE',
+  params: ['depth.BTC_USD']
+});
+```
+
+**Message Format:**
+
+<ParamField body="method" type="string" required>
+  Must be `SUBSCRIBE`
+</ParamField>
+
+<ParamField body="params" type="string[]" required>
+  Array of stream names to subscribe to. Format: `{eventType}.{symbol}`
+</ParamField>
+
+<ParamField body="id" type="number">
+  Auto-generated message ID (handled by WsManager)
+</ParamField>
+
+**Available Streams:**
+
+- `depth.{SYMBOL}` - Order book depth updates
+- `trade.{SYMBOL}` - Live trade executions
+
+### Unsubscribe from Stream
+
+```typescript
+wsManager.sendMessage({
+  method: 'UNSUBSCRIBE',
+  params: ['depth.BTC_USD']
+});
+```
+
+<CodeGroup>
+
+```json Subscribe Example
+{
+  "method": "SUBSCRIBE",
+  "params": ["depth.BTC_USD", "trade.BTC_USD"],
+  "id": 1
+}
+```
+
+```json Unsubscribe Example
+{
+  "method": "UNSUBSCRIBE",
+  "params": ["depth.BTC_USD"],
+  "id": 2
+}
+```
+
+</CodeGroup>
+
+---
+
+## Event Types
+
+### Depth Updates
+
+Receive real-time order book updates when bids or asks change.
+
+**Event Type:** `depth`
+
+**Registering Callback:**
+
+```typescript
+wsManager.registerCallback(
+  'depth',
+  (data) => {
+    console.log('Updated Bids:', data.bids);
+    console.log('Updated Asks:', data.asks);
+  },
+  'depth-callback-id'
+);
+
+// Subscribe to depth stream
+wsManager.sendMessage({
+  method: 'SUBSCRIBE',
+  params: ['depth.BTC_USD']
+});
+```
+
+**Callback Data Format:**
+
+<ResponseField name="bids" type="[string, string][]">
+  Array of updated bid orders as [price, quantity] pairs
+</ResponseField>
+
+<ResponseField name="asks" type="[string, string][]">
+  Array of updated ask orders as [price, quantity] pairs
+</ResponseField>
+
+**Raw Message Format:**
+
+```json
+{
+  "data": {
+    "e": "depth",
+    "b": [
+      ["50000.00", "1.5"],
+      ["49999.00", "2.0"]
+    ],
+    "a": [
+      ["50001.00", "0.8"],
+      ["50002.00", "1.2"]
+    ]
+  }
+}
+```
+
+**Implementation Details:**
+
+```typescript
+// From ws_manager.ts:40-44
+if (type === "depth") {
+  const updatedBids = message.data.b;
+  const updatedAsks = message.data.a;
+  callback({ bids: updatedBids, asks: updatedAsks });
+}
+```
+
+---
+
+### Trade Updates
+
+Receive notifications when new trades are executed on the exchange.
+
+**Event Type:** `trade`
+
+**Registering Callback:**
+
+```typescript
+wsManager.registerCallback(
+  'trade',
+  (tradeData) => {
+    console.log('New Trade:', tradeData);
+  },
+  'trade-callback-id'
+);
+
+// Subscribe to trade stream
+wsManager.sendMessage({
+  method: 'SUBSCRIBE',
+  params: ['trade.BTC_USD']
+});
+```
+
+**Callback Data Format:**
+
+The callback receives the entire trade data object from the message.
+
+<ResponseField name="e" type="string">
+  Event type (always `trade`)
+</ResponseField>
+
+<ResponseField name="Additional fields">
+  Trade execution details (price, quantity, timestamp, etc.)
+</ResponseField>
+
+**Raw Message Format:**
+
+```json
+{
+  "data": {
+    "e": "trade",
+    "id": 123456,
+    "price": "50000.00",
+    "quantity": "0.5",
+    "timestamp": 1678901234567,
+    "isBuyerMaker": true
+  }
+}
+```
+
+**Implementation Details:**
+
+```typescript
+// From ws_manager.ts:46-49
+if (type === "trade") {
+  const trades = message.data;
+  callback(trades);
+}
+```
+
+---
+
+## Callback Management
+
+### Register Callback
+
+Register a handler function for a specific event type.
+
+```typescript
+await wsManager.registerCallback(
+  eventType: string,
+  callback: (data: any) => void,
+  id: string
+);
+```
+
+<ParamField path="eventType" type="string" required>
+  Event type to listen for (`depth`, `trade`, etc.)
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Function to call when event is received
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Unique identifier for this callback registration
+</ParamField>
+
+**Example:**
+
+```typescript
+const callbackId = 'my-depth-handler';
+
+await wsManager.registerCallback(
+  'depth',
+  (data) => {
+    // Update UI with new order book data
+    updateOrderBook(data.bids, data.asks);
+  },
+  callbackId
+);
+```
+
+### Deregister Callback
+
+Remove a previously registered callback.
+
+```typescript
+await wsManager.deRegisterCallback(
+  eventType: string,
+  id: string
+);
+```
+
+<ParamField path="eventType" type="string" required>
+  Event type the callback was registered for
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Unique identifier used during registration
+</ParamField>
+
+**Example:**
+
+```typescript
+// Clean up when component unmounts
+await wsManager.deRegisterCallback('depth', 'my-depth-handler');
+
+// Unsubscribe from the stream
+wsManager.sendMessage({
+  method: 'UNSUBSCRIBE',
+  params: ['depth.BTC_USD']
+});
+```
+
+---
+
+## Complete Usage Example
+
+Here's a complete example showing WebSocket connection, subscription, and cleanup:
+
+<CodeGroup>
+
+```typescript React Component
+import { useEffect } from 'react';
+import { WsManager } from './utils/ws_manager';
+
+function TradingView({ market }: { market: string }) {
+  useEffect(() => {
+    const wsManager = WsManager.getInstance();
+    const depthCallbackId = `depth-${market}`;
+    const tradeCallbackId = `trade-${market}`;
+
+    // Register depth updates
+    wsManager.registerCallback(
+      'depth',
+      (data) => {
+        console.log('Order book updated:', data);
+        // Update your state/UI here
+      },
+      depthCallbackId
+    );
+
+    // Register trade updates
+    wsManager.registerCallback(
+      'trade',
+      (data) => {
+        console.log('New trade:', data);
+        // Update your state/UI here
+      },
+      tradeCallbackId
+    );
+
+    // Subscribe to streams
+    wsManager.sendMessage({
+      method: 'SUBSCRIBE',
+      params: [`depth.${market}`, `trade.${market}`]
+    });
+
+    // Cleanup on unmount
+    return () => {
+      wsManager.deRegisterCallback('depth', depthCallbackId);
+      wsManager.deRegisterCallback('trade', tradeCallbackId);
+      wsManager.sendMessage({
+        method: 'UNSUBSCRIBE',
+        params: [`depth.${market}`, `trade.${market}`]
+      });
+    };
+  }, [market]);
+
+  return <div>Trading View for {market}</div>;
+}
+```
+
+```typescript Vanilla JavaScript
+import { WsManager } from './utils/ws_manager';
+
+const wsManager = WsManager.getInstance();
+
+// Register callbacks
+wsManager.registerCallback(
+  'depth',
+  (data) => {
+    document.getElementById('bids').textContent = JSON.stringify(data.bids, null, 2);
+    document.getElementById('asks').textContent = JSON.stringify(data.asks, null, 2);
+  },
+  'depth-handler'
+);
+
+wsManager.registerCallback(
+  'trade',
+  (data) => {
+    const tradesDiv = document.getElementById('trades');
+    const tradeElement = document.createElement('div');
+    tradeElement.textContent = `Price: ${data.price}, Qty: ${data.quantity}`;
+    tradesDiv.prepend(tradeElement);
+  },
+  'trade-handler'
+);
+
+// Subscribe
+wsManager.sendMessage({
+  method: 'SUBSCRIBE',
+  params: ['depth.BTC_USD', 'trade.BTC_USD']
+});
+
+// Cleanup (call when done)
+function cleanup() {
+  wsManager.deRegisterCallback('depth', 'depth-handler');
+  wsManager.deRegisterCallback('trade', 'trade-handler');
+  wsManager.sendMessage({
+    method: 'UNSUBSCRIBE',
+    params: ['depth.BTC_USD', 'trade.BTC_USD']
+  });
+}
+```
+
+</CodeGroup>
+
+---
+
+## Message Structure
+
+All WebSocket messages follow this structure:
+
+### Outgoing Messages (Client → Server)
+
+```typescript
+{
+  method: 'SUBSCRIBE' | 'UNSUBSCRIBE',
+  params: string[],
+  id: number  // Auto-generated by WsManager
+}
+```
+
+### Incoming Messages (Server → Client)
+
+```typescript
+{
+  data: {
+    e: string,  // Event type
+    // ... event-specific fields
+  }
+}
+```
+
+---
+
+## Best Practices
+
+<Note>
+  **Singleton Pattern**: Always use `WsManager.getInstance()` to ensure a single WebSocket connection is shared across your application.
+</Note>
+
+<Note>
+  **Unique Callback IDs**: Use unique identifiers for callback registrations to avoid conflicts, especially when subscribing to the same event type multiple times.
+</Note>
+
+<Note>
+  **Cleanup**: Always deregister callbacks and unsubscribe from streams when components unmount or when subscriptions are no longer needed.
+</Note>
+
+<Note>
+  **Error Handling**: Implement error handling for WebSocket disconnections and reconnection logic if needed beyond the built-in buffering.
+</Note>
+
+---
+
+## Implementation Reference
+
+The WebSocket manager implementation can be found in:
+
+`source/apps/web/src/utils/ws_manager.ts:1-84`
+
+Key features:
+- Singleton pattern for connection management
+- Automatic message buffering during connection
+- Callback routing based on event type
+- Support for multiple callbacks per event type

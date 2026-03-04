@@ -1,0 +1,374 @@
+---
+title: Deployment
+description: Deploy Exchange Web to production environments
+---
+
+## Deployment Overview
+
+Exchange Web is a static React application that can be deployed to any platform supporting static site hosting. The build output from Vite is optimized for production and ready to serve.
+
+## Prerequisites
+
+Before deploying, ensure:
+
+- Your application builds successfully: `yarn build`
+- All tests pass (if applicable)
+- Environment variables are configured
+- Production configuration is set
+
+## Vercel Deployment (Recommended)
+
+Exchange Web includes Vercel configuration and is optimized for Vercel deployment.
+
+### Configuration
+
+The project includes `apps/web/vercel.json` for routing configuration:
+
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+}
+```
+
+This configuration enables client-side routing by redirecting all routes to the index.html, allowing React Router to handle navigation.
+
+### Deploy to Vercel
+
+<Steps>
+  <Step title="Install Vercel CLI">
+    ```bash
+    npm i -g vercel
+    ```
+  </Step>
+
+  <Step title="Login to Vercel">
+    ```bash
+    vercel login
+    ```
+  </Step>
+
+  <Step title="Deploy from root directory">
+    ```bash
+    vercel
+    ```
+    
+    For production deployment:
+    
+    ```bash
+    vercel --prod
+    ```
+  </Step>
+
+  <Step title="Configure project settings">
+    When prompted, configure:
+    
+    - **Framework Preset**: Vite
+    - **Root Directory**: `apps/web`
+    - **Build Command**: `cd ../.. && yarn build`
+    - **Output Directory**: `apps/web/dist`
+    - **Install Command**: `yarn install`
+  </Step>
+</Steps>
+
+<Note>
+  For monorepo deployment, ensure Vercel builds from the root directory to properly resolve workspace dependencies.
+</Note>
+
+### Vercel Dashboard Deployment
+
+Alternatively, deploy via the Vercel dashboard:
+
+<Steps>
+  <Step title="Connect repository">
+    1. Go to [vercel.com](https://vercel.com)
+    2. Click "Add New Project"
+    3. Import your Git repository
+  </Step>
+
+  <Step title="Configure build settings">
+    Set the following in your project settings:
+    
+    | Setting | Value |
+    |---------|-------|
+    | Framework Preset | Vite |
+    | Root Directory | `apps/web` |
+    | Build Command | `cd ../.. && yarn build` |
+    | Output Directory | `dist` |
+    | Install Command | `yarn install` |
+  </Step>
+
+  <Step title="Add environment variables">
+    In the Vercel dashboard, add any required environment variables (prefixed with `VITE_`):
+    
+    - `VITE_API_URL`
+    - `VITE_WS_URL`
+    - Any other configuration
+  </Step>
+
+  <Step title="Deploy">
+    Click "Deploy" and Vercel will build and deploy your application.
+  </Step>
+</Steps>
+
+### Vercel Analytics
+
+Exchange Web includes `@vercel/analytics` for performance monitoring:
+
+```json
+"@vercel/analytics": "^1.5.0"
+```
+
+Analytics are automatically enabled when deployed to Vercel.
+
+## Alternative Deployment Platforms
+
+### Netlify
+
+<Steps>
+  <Step title="Create netlify.toml">
+    Add to `apps/web/netlify.toml`:
+    
+    ```toml
+    [build]
+      base = "apps/web"
+      command = "cd ../.. && yarn build"
+      publish = "dist"
+    
+    [[redirects]]
+      from = "/*"
+      to = "/index.html"
+      status = 200
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    Connect your repository to Netlify or use the CLI:
+    
+    ```bash
+    netlify deploy --prod
+    ```
+  </Step>
+</Steps>
+
+### AWS S3 + CloudFront
+
+<Steps>
+  <Step title="Build the application">
+    ```bash
+    yarn build
+    ```
+  </Step>
+
+  <Step title="Upload to S3">
+    ```bash
+    aws s3 sync apps/web/dist/ s3://your-bucket-name --delete
+    ```
+  </Step>
+
+  <Step title="Configure CloudFront">
+    - Create a CloudFront distribution
+    - Point to your S3 bucket
+    - Configure error pages to redirect to `/index.html` for SPA routing
+  </Step>
+
+  <Step title="Invalidate cache">
+    ```bash
+    aws cloudfront create-invalidation --distribution-id YOUR_ID --paths "/*"
+    ```
+  </Step>
+</Steps>
+
+### Docker Deployment
+
+<Steps>
+  <Step title="Create Dockerfile">
+    Add to `apps/web/Dockerfile`:
+    
+    ```dockerfile
+    FROM node:18-alpine AS builder
+    WORKDIR /app
+    COPY package.json yarn.lock ./
+    COPY apps/web/package.json ./apps/web/
+    COPY packages/ ./packages/
+    RUN yarn install --frozen-lockfile
+    COPY apps/web ./apps/web
+    RUN yarn build
+    
+    FROM nginx:alpine
+    COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+    COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+    EXPOSE 80
+    CMD ["nginx", "-g", "daemon off;"]
+    ```
+  </Step>
+
+  <Step title="Create nginx.conf">
+    Add to `apps/web/nginx.conf`:
+    
+    ```nginx
+    server {
+      listen 80;
+      root /usr/share/nginx/html;
+      index index.html;
+      
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Build and run">
+    ```bash
+    docker build -t exchange-web .
+    docker run -p 80:80 exchange-web
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables
+
+<Warning>
+  Environment variables are embedded at build time in Vite. Never commit sensitive values to version control.
+</Warning>
+
+### Production Environment Variables
+
+Create `.env.production` in `apps/web`:
+
+```bash
+VITE_API_URL=https://api.yourdomain.com
+VITE_WS_URL=wss://ws.yourdomain.com
+VITE_CHAIN_ID=1
+```
+
+### Platform-Specific Configuration
+
+<CodeGroup>
+```bash Vercel
+# Set via Vercel dashboard or CLI
+vercel env add VITE_API_URL production
+```
+
+```bash Netlify
+# Set via Netlify dashboard or netlify.toml
+[context.production.environment]
+  VITE_API_URL = "https://api.yourdomain.com"
+```
+
+```bash Docker
+# Pass as build args
+docker build --build-arg VITE_API_URL=https://api.yourdomain.com .
+```
+</CodeGroup>
+
+## Production Considerations
+
+### Performance
+
+- Enable **gzip/brotli compression** on your server
+- Configure **CDN caching** for static assets
+- Set proper **cache headers** for immutable assets
+- Enable **HTTP/2** or **HTTP/3** for faster loading
+
+### Security
+
+<Steps>
+  <Step title="HTTPS">
+    Always serve over HTTPS in production. Most platforms (Vercel, Netlify) provide this automatically.
+  </Step>
+
+  <Step title="Security headers">
+    Configure security headers:
+    
+    ```
+    Strict-Transport-Security: max-age=31536000
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+    Content-Security-Policy: default-src 'self'
+    ```
+  </Step>
+
+  <Step title="CORS">
+    Configure CORS on your API server to only allow your production domain.
+  </Step>
+</Steps>
+
+### Monitoring
+
+- Enable **Vercel Analytics** (included in dependencies)
+- Set up **error tracking** (Sentry, Rollbar, etc.)
+- Monitor **Web Vitals** for performance
+- Configure **uptime monitoring**
+
+### Rollback Strategy
+
+<Note>
+  Most platforms support instant rollback to previous deployments. Familiarize yourself with your platform's rollback process.
+</Note>
+
+- **Vercel**: Instant rollback via dashboard
+- **Netlify**: Rollback to any previous deploy
+- **AWS**: Deploy previous version from S3
+
+## CI/CD Integration
+
+### GitHub Actions Example
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
+      - run: yarn test # if tests exist
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+```
+
+## Troubleshooting
+
+### Build Fails
+
+- Check Node.js version (must be 18+)
+- Clear Turborepo cache: `yarn turbo build --force`
+- Verify all dependencies are installed
+
+### Routes Don't Work
+
+- Ensure rewrites/redirects are configured for SPA routing
+- Verify `vercel.json` or equivalent is present
+
+### Environment Variables Not Loading
+
+- Confirm variables are prefixed with `VITE_`
+- Rebuild after changing environment variables
+- Check platform-specific environment variable configuration
+
+## Next Steps
+
+After deployment:
+
+- Set up monitoring and alerting
+- Configure custom domain
+- Enable automatic deployments from Git
+- Set up staging environment
+- Document your deployment process

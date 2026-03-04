@@ -1,0 +1,559 @@
+---
+title: 'REST API Endpoints'
+description: 'Complete reference for all REST API endpoints'
+---
+
+## Base URL
+
+```
+https://exchange.jogeshwar.xyz/backend/api/v1
+```
+
+All endpoints are prefixed with this base URL.
+
+## Market Data Endpoints
+
+### Get Order Book Depth
+
+```typescript
+GET /depth
+```
+
+Retrieve the current order book depth for a specific market.
+
+<ParamField query="symbol" type="string" required>
+  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+</ParamField>
+
+**Example Request:**
+
+```typescript
+import { getDepth } from './utils/requests';
+
+const depth = await getDepth('BTC_USD');
+```
+
+**Response:**
+
+<ResponseField name="bids" type="[string, string][]">
+  Array of bid orders as [price, quantity] pairs
+</ResponseField>
+
+<ResponseField name="asks" type="[string, string][]">
+  Array of ask orders as [price, quantity] pairs
+</ResponseField>
+
+<ResponseField name="lastUpdateId" type="string">
+  Last update identifier for the order book
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "bids": [
+    ["50000.00", "0.5"],
+    ["49999.00", "1.2"],
+    ["49998.00", "0.8"]
+  ],
+  "asks": [
+    ["50001.00", "0.3"],
+    ["50002.00", "1.5"],
+    ["50003.00", "2.0"]
+  ],
+  "lastUpdateId": "12345678"
+}
+```
+
+```typescript TypeScript Interface
+interface Depth {
+  bids: [string, string][];
+  asks: [string, string][];
+  lastUpdateId: string;
+}
+```
+
+</CodeGroup>
+
+---
+
+### Get Recent Trades
+
+```typescript
+GET /trades
+```
+
+Fetch recent trade history for a specific market.
+
+<ParamField query="symbol" type="string" required>
+  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+</ParamField>
+
+**Example Request:**
+
+```typescript
+import { getTrades } from './utils/requests';
+
+const trades = await getTrades('BTC_USD');
+```
+
+**Response:**
+
+Returns an array of `Trade` objects.
+
+<ResponseField name="id" type="number">
+  Unique trade identifier
+</ResponseField>
+
+<ResponseField name="isBuyerMaker" type="boolean">
+  True if the buyer was the maker (placed limit order first)
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Trade execution price
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Base asset quantity traded
+</ResponseField>
+
+<ResponseField name="quoteQuantity" type="string">
+  Quote asset quantity (price × quantity)
+</ResponseField>
+
+<ResponseField name="timestamp" type="number">
+  Unix timestamp in milliseconds
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+[
+  {
+    "id": 123456,
+    "isBuyerMaker": true,
+    "price": "50000.00",
+    "quantity": "0.5",
+    "quoteQuantity": "25000.00",
+    "timestamp": 1678901234567
+  },
+  {
+    "id": 123457,
+    "isBuyerMaker": false,
+    "price": "50001.00",
+    "quantity": "0.3",
+    "quoteQuantity": "15000.30",
+    "timestamp": 1678901234890
+  }
+]
+```
+
+```typescript TypeScript Interface
+interface Trade {
+  id: number;
+  isBuyerMaker: boolean;
+  price: string;
+  quantity: string;
+  quoteQuantity: string;
+  timestamp: number;
+}
+```
+
+</CodeGroup>
+
+---
+
+### Get Candlestick Data
+
+```typescript
+GET /klines
+```
+
+Retrieve OHLCV (Open, High, Low, Close, Volume) candlestick data for charting.
+
+<ParamField query="symbol" type="string" required>
+  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+</ParamField>
+
+<ParamField query="interval" type="string" required>
+  Candlestick interval (e.g., `1m`, `5m`, `1h`, `1d`)
+</ParamField>
+
+<ParamField query="startTime" type="number" required>
+  Start time in Unix timestamp (milliseconds)
+</ParamField>
+
+**Example Request:**
+
+```typescript
+import { getKlines } from './utils/requests';
+
+const startTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+const klines = await getKlines('BTC_USD', '1h', startTime);
+```
+
+<Note>
+  The response is automatically sorted by end time in ascending order.
+</Note>
+
+**Response:**
+
+Returns an array of `KLine` objects.
+
+<ResponseField name="open" type="string">
+  Opening price for the period
+</ResponseField>
+
+<ResponseField name="high" type="string">
+  Highest price during the period
+</ResponseField>
+
+<ResponseField name="low" type="string">
+  Lowest price during the period
+</ResponseField>
+
+<ResponseField name="close" type="string">
+  Closing price for the period
+</ResponseField>
+
+<ResponseField name="volume" type="string">
+  Base asset volume traded
+</ResponseField>
+
+<ResponseField name="quoteVolume" type="string">
+  Quote asset volume traded
+</ResponseField>
+
+<ResponseField name="start" type="string">
+  Candlestick period start time
+</ResponseField>
+
+<ResponseField name="end" type="string">
+  Candlestick period end time
+</ResponseField>
+
+<ResponseField name="trades" type="string">
+  Number of trades in this period
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+[
+  {
+    "open": "50000.00",
+    "high": "50500.00",
+    "low": "49800.00",
+    "close": "50200.00",
+    "volume": "125.5",
+    "quoteVolume": "6287500.00",
+    "start": "1678901200000",
+    "end": "1678904800000",
+    "trades": "1234"
+  }
+]
+```
+
+```typescript TypeScript Interface
+interface KLine {
+  close: string;
+  end: string;
+  high: string;
+  low: string;
+  open: string;
+  quoteVolume: string;
+  start: string;
+  trades: string;
+  volume: string;
+}
+```
+
+</CodeGroup>
+
+---
+
+### Get All Market Tickers
+
+```typescript
+GET /tickers
+```
+
+Retrieve 24-hour ticker statistics for all markets.
+
+**Example Request:**
+
+```typescript
+import { getTickers } from './utils/requests';
+
+const tickers = await getTickers();
+```
+
+**Response:**
+
+Returns an array of `Ticker` objects.
+
+<ResponseField name="symbol" type="string">
+  Market symbol
+</ResponseField>
+
+<ResponseField name="firstPrice" type="string">
+  Price at the start of the 24-hour period
+</ResponseField>
+
+<ResponseField name="lastPrice" type="string">
+  Current/last traded price
+</ResponseField>
+
+<ResponseField name="high" type="string">
+  Highest price in 24 hours
+</ResponseField>
+
+<ResponseField name="low" type="string">
+  Lowest price in 24 hours
+</ResponseField>
+
+<ResponseField name="priceChange" type="string">
+  Absolute price change in 24 hours
+</ResponseField>
+
+<ResponseField name="priceChangePercent" type="string">
+  Price change percentage in 24 hours
+</ResponseField>
+
+<ResponseField name="volume" type="string">
+  Base asset volume in 24 hours
+</ResponseField>
+
+<ResponseField name="quoteVolume" type="string">
+  Quote asset volume in 24 hours
+</ResponseField>
+
+<ResponseField name="trades" type="string">
+  Number of trades in 24 hours
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+[
+  {
+    "symbol": "BTC_USD",
+    "firstPrice": "49500.00",
+    "lastPrice": "50200.00",
+    "high": "50500.00",
+    "low": "49200.00",
+    "priceChange": "700.00",
+    "priceChangePercent": "1.41",
+    "volume": "1234.56",
+    "quoteVolume": "61728000.00",
+    "trades": "45678"
+  },
+  {
+    "symbol": "ETH_USD",
+    "firstPrice": "3000.00",
+    "lastPrice": "3050.00",
+    "high": "3100.00",
+    "low": "2980.00",
+    "priceChange": "50.00",
+    "priceChangePercent": "1.67",
+    "volume": "5678.90",
+    "quoteVolume": "17320000.00",
+    "trades": "23456"
+  }
+]
+```
+
+```typescript TypeScript Interface
+interface Ticker {
+  firstPrice: string;
+  high: string;
+  lastPrice: string;
+  low: string;
+  priceChange: string;
+  priceChangePercent: string;
+  quoteVolume: string;
+  symbol: string;
+  trades: string;
+  volume: string;
+}
+```
+
+</CodeGroup>
+
+---
+
+### Get Specific Market Ticker
+
+```typescript
+GET /ticker (via getTicker helper)
+```
+
+Retrieve 24-hour ticker statistics for a specific market.
+
+<Note>
+  This is a helper function that fetches all tickers and filters for the requested market. The backend endpoint is `/tickers`.
+</Note>
+
+**Example Request:**
+
+```typescript
+import { getTicker } from './utils/requests';
+
+const ticker = await getTicker('BTC_USD');
+```
+
+**Response:**
+
+Returns a single `Ticker` object with the same structure as shown in the `/tickers` endpoint above.
+
+---
+
+## Trading Endpoints
+
+### Create Order
+
+```typescript
+POST /order
+```
+
+Place a new limit order on the exchange.
+
+**Request Body:**
+
+<ParamField body="market" type="string" required>
+  Market symbol (e.g., `BTC_USD`)
+</ParamField>
+
+<ParamField body="side" type="string" required>
+  Order side: `buy` or `sell`
+</ParamField>
+
+<ParamField body="quantity" type="number" required>
+  Order quantity in base asset
+</ParamField>
+
+<ParamField body="price" type="number" required>
+  Limit price for the order
+</ParamField>
+
+<ParamField body="user_id" type="string" required>
+  User identifier for authentication
+</ParamField>
+
+**Example Request:**
+
+```typescript
+import { createOrder } from './utils/requests';
+
+const order = {
+  market: 'BTC_USD',
+  side: 'buy',
+  quantity: 0.5,
+  price: 50000,
+  userId: 'user-123'
+};
+
+const orderId = await createOrder(order);
+```
+
+**Response:**
+
+Returns the created order ID as a string.
+
+<CodeGroup>
+
+```json Response Example
+"order-abc123def456"
+```
+
+```typescript TypeScript Interface
+interface CreateOrder {
+  market: string;
+  side: string;
+  quantity: number;
+  price: number;
+  userId: string;
+}
+```
+
+</CodeGroup>
+
+---
+
+## User Management
+
+### Create User
+
+```typescript
+POST /users
+```
+
+Create a new user account and receive a unique user ID.
+
+**Example Request:**
+
+```typescript
+import { createUser } from './utils/requests';
+
+const userResponse = await createUser();
+console.log('User ID:', userResponse.user_id);
+```
+
+**Response:**
+
+<ResponseField name="status" type="string">
+  Status of the user creation request
+</ResponseField>
+
+<ResponseField name="user_id" type="string">
+  Unique identifier for the created user
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "status": "success",
+  "user_id": "user-abc123def456"
+}
+```
+
+```typescript TypeScript Interface
+interface UserId {
+  status: string;
+  user_id: string;
+}
+```
+
+</CodeGroup>
+
+---
+
+## Error Handling
+
+All endpoints use standard HTTP status codes:
+
+- `200` - Success
+- `400` - Bad Request (invalid parameters)
+- `404` - Not Found (market/resource doesn't exist)
+- `500` - Internal Server Error
+
+**Error Response Example:**
+
+```json
+{
+  "error": "Market not found",
+  "message": "No ticker found for INVALID_MARKET"
+}
+```
+
+**Implementation:**
+
+```typescript
+try {
+  const ticker = await getTicker('BTC_USD');
+  console.log(ticker);
+} catch (error) {
+  console.error('API Error:', error.message);
+}
+```
