@@ -22,7 +22,7 @@ GET /depth
 Retrieve the current order book depth for a specific market.
 
 <ParamField query="symbol" type="string" required>
-  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+  Market symbol (e.g., `SOL_USDC`, `SOL_USDC`)
 </ParamField>
 
 **Example Request:**
@@ -30,7 +30,7 @@ Retrieve the current order book depth for a specific market.
 ```typescript
 import { getDepth } from './utils/requests';
 
-const depth = await getDepth('BTC_USD');
+const depth = await getDepth('SOL_USDC');
 ```
 
 **Response:**
@@ -86,7 +86,7 @@ GET /trades
 Fetch recent trade history for a specific market.
 
 <ParamField query="symbol" type="string" required>
-  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+  Market symbol (e.g., `SOL_USDC`, `SOL_USDC`)
 </ParamField>
 
 **Example Request:**
@@ -94,7 +94,7 @@ Fetch recent trade history for a specific market.
 ```typescript
 import { getTrades } from './utils/requests';
 
-const trades = await getTrades('BTC_USD');
+const trades = await getTrades('SOL_USDC');
 ```
 
 **Response:**
@@ -172,7 +172,7 @@ GET /klines
 Retrieve OHLCV (Open, High, Low, Close, Volume) candlestick data for charting.
 
 <ParamField query="symbol" type="string" required>
-  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+  Market symbol (e.g., `SOL_USDC`, `SOL_USDC`)
 </ParamField>
 
 <ParamField query="interval" type="string" required>
@@ -189,7 +189,7 @@ Retrieve OHLCV (Open, High, Low, Close, Volume) candlestick data for charting.
 import { getKlines } from './utils/requests';
 
 const startTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
-const klines = await getKlines('BTC_USD', '1h', startTime);
+const klines = await getKlines('SOL_USDC', '1h', startTime);
 ```
 
 <Note>
@@ -337,7 +337,7 @@ Returns an array of `Ticker` objects.
 ```json Response Example
 [
   {
-    "symbol": "BTC_USD",
+    "symbol": "SOL_USDC",
     "firstPrice": "49500.00",
     "lastPrice": "50200.00",
     "high": "50500.00",
@@ -349,7 +349,7 @@ Returns an array of `Ticker` objects.
     "trades": "45678"
   },
   {
-    "symbol": "ETH_USD",
+    "symbol": "SOL_USDC",
     "firstPrice": "3000.00",
     "lastPrice": "3050.00",
     "high": "3100.00",
@@ -399,7 +399,7 @@ Retrieve 24-hour ticker statistics for a specific market.
 ```typescript
 import { getTicker } from './utils/requests';
 
-const ticker = await getTicker('BTC_USD');
+const ticker = await getTicker('SOL_USDC');
 ```
 
 **Response:**
@@ -421,7 +421,7 @@ Place a new limit order on the exchange.
 **Request Body:**
 
 <ParamField body="market" type="string" required>
-  Market symbol (e.g., `BTC_USD`)
+  Market symbol (e.g., `SOL_USDC`)
 </ParamField>
 
 <ParamField body="side" type="string" required>
@@ -446,7 +446,7 @@ Place a new limit order on the exchange.
 import { createOrder } from './utils/requests';
 
 const order = {
-  market: 'BTC_USD',
+  market: 'SOL_USDC',
   side: 'buy',
   quantity: 0.5,
   price: 50000,
@@ -551,7 +551,7 @@ All endpoints use standard HTTP status codes:
 
 ```typescript
 try {
-  const ticker = await getTicker('BTC_USD');
+  const ticker = await getTicker('SOL_USDC');
   console.log(ticker);
 } catch (error) {
   console.error('API Error:', error.message);

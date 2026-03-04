@@ -72,7 +72,7 @@ Subscribe and unsubscribe to market data streams using the following message for
 ```typescript
 wsManager.sendMessage({
   method: 'SUBSCRIBE',
-  params: ['depth.BTC_USD']
+  params: ['depth.SOL_USDC']
 });
 ```
 
@@ -100,7 +100,7 @@ wsManager.sendMessage({
 ```typescript
 wsManager.sendMessage({
   method: 'UNSUBSCRIBE',
-  params: ['depth.BTC_USD']
+  params: ['depth.SOL_USDC']
 });
 ```
 
@@ -109,7 +109,7 @@ wsManager.sendMessage({
 ```json Subscribe Example
 {
   "method": "SUBSCRIBE",
-  "params": ["depth.BTC_USD", "trade.BTC_USD"],
+  "params": ["depth.SOL_USDC", "trade.SOL_USDC"],
   "id": 1
 }
 ```
@@ -117,7 +117,7 @@ wsManager.sendMessage({
 ```json Unsubscribe Example
 {
   "method": "UNSUBSCRIBE",
-  "params": ["depth.BTC_USD"],
+  "params": ["depth.SOL_USDC"],
   "id": 2
 }
 ```
@@ -149,7 +149,7 @@ wsManager.registerCallback(
 // Subscribe to depth stream
 wsManager.sendMessage({
   method: 'SUBSCRIBE',
-  params: ['depth.BTC_USD']
+  params: ['depth.SOL_USDC']
 });
 ```
 
@@ -214,7 +214,7 @@ wsManager.registerCallback(
 // Subscribe to trade stream
 wsManager.sendMessage({
   method: 'SUBSCRIBE',
-  params: ['trade.BTC_USD']
+  params: ['trade.SOL_USDC']
 });
 ```
 
@@ -326,7 +326,7 @@ await wsManager.deRegisterCallback('depth', 'my-depth-handler');
 // Unsubscribe from the stream
 wsManager.sendMessage({
   method: 'UNSUBSCRIBE',
-  params: ['depth.BTC_USD']
+  params: ['depth.SOL_USDC']
 });
 ```
 
@@ -418,7 +418,7 @@ wsManager.registerCallback(
 // Subscribe
 wsManager.sendMessage({
   method: 'SUBSCRIBE',
-  params: ['depth.BTC_USD', 'trade.BTC_USD']
+  params: ['depth.SOL_USDC', 'trade.SOL_USDC']
 });
 
 // Cleanup (call when done)
@@ -427,7 +427,7 @@ function cleanup() {
   wsManager.deRegisterCallback('trade', 'trade-handler');
   wsManager.sendMessage({
     method: 'UNSUBSCRIBE',
-    params: ['depth.BTC_USD', 'trade.BTC_USD']
+    params: ['depth.SOL_USDC', 'trade.SOL_USDC']
   });
 }
 ```

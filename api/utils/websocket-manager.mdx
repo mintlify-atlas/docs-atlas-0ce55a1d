@@ -78,7 +78,7 @@ If the WebSocket connection is not initialized, messages are buffered and sent w
 ```typescript
 wsManager.sendMessage({
   method: "SUBSCRIBE",
-  params: ["depth.BTC_USDT"],
+  params: ["depth.SOL_USDCT"],
 });
 ```
 
@@ -150,7 +150,7 @@ const wsManager = WsManager.getInstance();
 // Subscribe to depth updates
 wsManager.sendMessage({
   method: "SUBSCRIBE",
-  params: ["depth.BTC_USDT"],
+  params: ["depth.SOL_USDCT"],
 });
 
 // Register callback for depth updates
@@ -239,8 +239,8 @@ The WsManager automatically buffers messages sent before the WebSocket connectio
 const wsManager = WsManager.getInstance();
 
 // These messages are buffered if connection isn't ready
-wsManager.sendMessage({ method: "SUBSCRIBE", params: ["depth.BTC_USDT"] });
-wsManager.sendMessage({ method: "SUBSCRIBE", params: ["trade.BTC_USDT"] });
+wsManager.sendMessage({ method: "SUBSCRIBE", params: ["depth.SOL_USDCT"] });
+wsManager.sendMessage({ method: "SUBSCRIBE", params: ["trade.SOL_USDCT"] });
 
 // All buffered messages are sent when connection opens
 ```

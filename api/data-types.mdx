@@ -71,7 +71,7 @@ interface KLine {
 import { getKlines } from './utils/requests';
 import { KLine } from './utils/types';
 
-const klines: KLine[] = await getKlines('BTC_USD', '1h', Date.now() - 86400000);
+const klines: KLine[] = await getKlines('SOL_USDC', '1h', Date.now() - 86400000);
 
 klines.forEach((kline) => {
   console.log(`Period: ${kline.start} - ${kline.end}`);
@@ -127,12 +127,12 @@ interface Trade {
 import { getTrades } from './utils/requests';
 import { Trade } from './utils/types';
 
-const trades: Trade[] = await getTrades('BTC_USD');
+const trades: Trade[] = await getTrades('SOL_USDC');
 
 const recentTrade: Trade = trades[0];
 console.log(`Trade #${recentTrade.id}`);
 console.log(`Price: $${recentTrade.price}`);
-console.log(`Amount: ${recentTrade.quantity} BTC`);
+console.log(`Amount: ${recentTrade.quantity} SOL`);
 console.log(`Side: ${recentTrade.isBuyerMaker ? 'Sell' : 'Buy'}`);
 console.log(`Time: ${new Date(recentTrade.timestamp).toLocaleString()}`);
 ```
@@ -173,15 +173,15 @@ interface Depth {
 import { getDepth } from './utils/requests';
 import { Depth } from './utils/types';
 
-const depth: Depth = await getDepth('BTC_USD');
+const depth: Depth = await getDepth('SOL_USDC');
 
 // Best bid (highest buy price)
 const bestBid = depth.bids[0];
-console.log(`Best Bid: $${bestBid[0]} (${bestBid[1]} BTC)`);
+console.log(`Best Bid: $${bestBid[0]} (${bestBid[1]} SOL)`);
 
 // Best ask (lowest sell price)
 const bestAsk = depth.asks[0];
-console.log(`Best Ask: $${bestAsk[0]} (${bestAsk[1]} BTC)`);
+console.log(`Best Ask: $${bestAsk[0]} (${bestAsk[1]} SOL)`);
 
 // Spread
 const spread = parseFloat(bestAsk[0]) - parseFloat(bestBid[0]);
@@ -192,7 +192,7 @@ const totalBidVolume = depth.bids.reduce(
   (sum, [_, quantity]) => sum + parseFloat(quantity),
   0
 );
-console.log(`Total Bid Volume: ${totalBidVolume} BTC`);
+console.log(`Total Bid Volume: ${totalBidVolume} SOL`);
 ```
 
 <Note>
@@ -221,7 +221,7 @@ interface Ticker {
 ```
 
 <ParamField path="symbol" type="string">
-  Market symbol (e.g., `BTC_USD`, `ETH_USD`)
+  Market symbol (e.g., `SOL_USDC`, `SOL_USDC`)
 </ParamField>
 
 <ParamField path="firstPrice" type="string">
@@ -266,14 +266,14 @@ interface Ticker {
 import { getTicker } from './utils/requests';
 import { Ticker } from './utils/types';
 
-const ticker: Ticker = await getTicker('BTC_USD');
+const ticker: Ticker = await getTicker('SOL_USDC');
 
 console.log(`${ticker.symbol}`);
 console.log(`Price: $${ticker.lastPrice}`);
 console.log(`24h Change: ${ticker.priceChange} (${ticker.priceChangePercent}%)`);
 console.log(`24h High: $${ticker.high}`);
 console.log(`24h Low: $${ticker.low}`);
-console.log(`24h Volume: ${ticker.volume} BTC`);
+console.log(`24h Volume: ${ticker.volume} SOL`);
 console.log(`24h Trades: ${ticker.trades}`);
 
 // Calculate if market is up or down
@@ -300,7 +300,7 @@ interface CreateOrder {
 ```
 
 <ParamField path="market" type="string">
-  Market symbol to place the order on (e.g., `BTC_USD`)
+  Market symbol to place the order on (e.g., `SOL_USDC`)
 </ParamField>
 
 <ParamField path="side" type="string">
@@ -331,7 +331,7 @@ const userId = userResponse.user_id;
 
 // Create a buy order
 const buyOrder: CreateOrder = {
-  market: 'BTC_USD',
+  market: 'SOL_USDC',
   side: 'buy',
   quantity: 0.5,
   price: 50000,
@@ -343,7 +343,7 @@ console.log(`Order created: ${orderId}`);
 
 // Create a sell order
 const sellOrder: CreateOrder = {
-  market: 'BTC_USD',
+  market: 'SOL_USDC',
   side: 'sell',
   quantity: 0.25,
   price: 51000,
@@ -402,7 +402,7 @@ const storedUserId = localStorage.getItem('userId');
 if (storedUserId) {
   // Use in order creation
   const order = {
-    market: 'BTC_USD',
+    market: 'SOL_USDC',
     side: 'buy',
     quantity: 0.1,
     price: 50000,
@@ -440,7 +440,7 @@ interface Stat {
 import { getTicker } from './utils/requests';
 import { Stat, Ticker } from './utils/types';
 
-const ticker: Ticker = await getTicker('BTC_USD');
+const ticker: Ticker = await getTicker('SOL_USDC');
 
 // Convert ticker to display stats
 const stats: Stat[] = [
@@ -448,7 +448,7 @@ const stats: Stat[] = [
   { label: '24h Change', value: `${ticker.priceChangePercent}%` },
   { label: '24h High', value: `$${ticker.high}` },
   { label: '24h Low', value: `$${ticker.low}` },
-  { label: '24h Volume', value: `${ticker.volume} BTC` },
+  { label: '24h Volume', value: `${ticker.volume} SOL` },
   { label: 'Trades', value: ticker.trades }
 ];
 
@@ -484,13 +484,13 @@ import { Depth, Trade, KLine, CreateOrder } from './utils/types';
 
 async function tradingExample() {
   // Strongly typed API calls
-  const depth: Depth = await getDepth('BTC_USD');
-  const trades: Trade[] = await getTrades('BTC_USD');
-  const klines: KLine[] = await getKlines('BTC_USD', '1h', Date.now() - 86400000);
+  const depth: Depth = await getDepth('SOL_USDC');
+  const trades: Trade[] = await getTrades('SOL_USDC');
+  const klines: KLine[] = await getKlines('SOL_USDC', '1h', Date.now() - 86400000);
 
   // Type-safe order creation
   const order: CreateOrder = {
-    market: 'BTC_USD',
+    market: 'SOL_USDC',
     side: 'buy',
     quantity: 0.1,
     price: 50000,

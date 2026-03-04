@@ -49,7 +49,7 @@ The REST API provides the following endpoints:
 | `/users` | POST | Create a new user account |
 
 <Note>
-  All market symbols follow the format: `BASE_QUOTE` (e.g., `BTC_USD`, `ETH_USD`)
+  All market symbols follow the format: `BASE_QUOTE` (e.g., `SOL_USDC`, `SOL_USDC`)
 </Note>
 
 ## WebSocket Events
@@ -69,12 +69,12 @@ Connect to the WebSocket URL and send SUBSCRIBE/UNSUBSCRIBE messages to manage y
 import { getTicker, createOrder } from './utils/requests';
 
 // Get market ticker
-const ticker = await getTicker('BTC_USD');
+const ticker = await getTicker('SOL_USDC');
 console.log(`BTC price: ${ticker.lastPrice}`);
 
 // Create an order
 const order = {
-  market: 'BTC_USD',
+  market: 'SOL_USDC',
   side: 'buy',
   quantity: 0.01,
   price: 50000,
@@ -97,7 +97,7 @@ wsManager.registerCallback('depth', (data) => {
 
 wsManager.sendMessage({
   method: 'SUBSCRIBE',
-  params: ['depth.BTC_USD']
+  params: ['depth.SOL_USDC']
 });
 ```
 

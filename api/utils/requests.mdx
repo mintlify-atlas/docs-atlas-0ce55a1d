@@ -24,7 +24,7 @@ async function getDepth(market: string): Promise<Depth>
 ```
 
 <ParamField path="market" type="string" required>
-  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+  Market symbol (e.g., "SOL_USDCT", "SOL_USDCT")
 </ParamField>
 
 <ResponseField name="return" type="Depth">
@@ -39,7 +39,7 @@ async function getDepth(market: string): Promise<Depth>
 ```typescript
 import { getDepth } from "@/utils/requests";
 
-const depth = await getDepth("BTC_USDT");
+const depth = await getDepth("SOL_USDCT");
 console.log("Top bid:", depth.bids[0]); // ["50000.00", "1.5"]
 console.log("Top ask:", depth.asks[0]); // ["50001.00", "2.0"]
 ```
@@ -53,7 +53,7 @@ async function getTrades(market: string): Promise<Trade[]>
 ```
 
 <ParamField path="market" type="string" required>
-  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+  Market symbol (e.g., "SOL_USDCT", "SOL_USDCT")
 </ParamField>
 
 <ResponseField name="return" type="Trade[]">
@@ -71,7 +71,7 @@ async function getTrades(market: string): Promise<Trade[]>
 ```typescript
 import { getTrades } from "@/utils/requests";
 
-const trades = await getTrades("BTC_USDT");
+const trades = await getTrades("SOL_USDCT");
 trades.forEach((trade) => {
   console.log(`${trade.quantity} @ ${trade.price}`);
 });
@@ -90,7 +90,7 @@ async function getKlines(
 ```
 
 <ParamField path="market" type="string" required>
-  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+  Market symbol (e.g., "SOL_USDCT", "SOL_USDCT")
 </ParamField>
 
 <ParamField path="interval" type="string" required>
@@ -124,7 +124,7 @@ The response is automatically sorted by end time in ascending order.
 import { getKlines } from "@/utils/requests";
 
 const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-const klines = await getKlines("BTC_USDT", "1h", oneDayAgo);
+const klines = await getKlines("SOL_USDCT", "1h", oneDayAgo);
 
 klines.forEach((candle) => {
   console.log(`Open: ${candle.open}, Close: ${candle.close}`);
@@ -140,7 +140,7 @@ async function getTicker(market: string): Promise<Ticker>
 ```
 
 <ParamField path="market" type="string" required>
-  Market symbol (e.g., "BTC_USDT", "ETH_USDT")
+  Market symbol (e.g., "SOL_USDCT", "SOL_USDCT")
 </ParamField>
 
 <ResponseField name="return" type="Ticker">
@@ -166,7 +166,7 @@ This function calls `getTickers()` internally and filters for the specific marke
 ```typescript
 import { getTicker } from "@/utils/requests";
 
-const ticker = await getTicker("BTC_USDT");
+const ticker = await getTicker("SOL_USDCT");
 console.log(`Current price: ${ticker.lastPrice}`);
 console.log(`24h change: ${ticker.priceChangePercent}%`);
 ```
@@ -211,7 +211,7 @@ async function createOrder(order: CreateOrder): Promise<string>
 
 <ParamField path="order" type="CreateOrder" required>
   Order parameters:
-  - `market` (string): Market symbol (e.g., "BTC_USDT")
+  - `market` (string): Market symbol (e.g., "SOL_USDCT")
   - `side` (string): Order side ("buy" or "sell")
   - `quantity` (number): Order quantity in base asset
   - `price` (number): Limit price
@@ -228,7 +228,7 @@ async function createOrder(order: CreateOrder): Promise<string>
 import { createOrder } from "@/utils/requests";
 
 const result = await createOrder({
-  market: "BTC_USDT",
+  market: "SOL_USDCT",
   side: "buy",
   quantity: 0.1,
   price: 50000,
@@ -279,7 +279,7 @@ import { getTicker } from "@/utils/requests";
 import axios from "axios";
 
 try {
-  const ticker = await getTicker("BTC_USDT");
+  const ticker = await getTicker("SOL_USDCT");
   console.log(ticker);
 } catch (error) {
   if (axios.isAxiosError(error)) {
@@ -309,26 +309,26 @@ async function initializeTrading() {
   console.log("User ID:", user.user_id);
 
   // Get market overview
-  const ticker = await getTicker("BTC_USDT");
+  const ticker = await getTicker("SOL_USDCT");
   console.log("Current price:", ticker.lastPrice);
 
   // Get order book
-  const depth = await getDepth("BTC_USDT");
+  const depth = await getDepth("SOL_USDCT");
   console.log("Best bid:", depth.bids[0]);
   console.log("Best ask:", depth.asks[0]);
 
   // Get recent trades
-  const trades = await getTrades("BTC_USDT");
+  const trades = await getTrades("SOL_USDCT");
   console.log(`Last ${trades.length} trades loaded`);
 
   // Get historical data
   const startTime = Date.now() - 24 * 60 * 60 * 1000;
-  const klines = await getKlines("BTC_USDT", "1h", startTime);
+  const klines = await getKlines("SOL_USDCT", "1h", startTime);
   console.log(`${klines.length} candles loaded`);
 
   // Place an order
   const order = await createOrder({
-    market: "BTC_USDT",
+    market: "SOL_USDCT",
     side: "buy",
     quantity: 0.001,
     price: parseFloat(depth.bids[0][0]) - 100, // 100 below best bid
