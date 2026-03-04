@@ -1,0 +1,106 @@
+{
+  "projectType": "frontend",
+  "projectName": "Exchange Web",
+  "projectDescription": "Blazing-fast React frontend for a high-frequency crypto exchange optimized for traders",
+  "theme": "aspen",
+  "primaryColor": "#34cb88",
+  "lightColor": "#5dd5a0",
+  "darkColor": "#ff615c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/trading-interface",
+              "features/order-book",
+              "features/charts",
+              "features/swap-interface"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/components",
+              "architecture/state-management",
+              "architecture/websocket"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/setup",
+              "development/building",
+              "development/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Backend Integration",
+            "pages": [
+              "api/overview",
+              "api/rest-endpoints",
+              "api/websocket-events",
+              "api/data-types"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "api/components/swap-interface",
+              "api/components/trade-interface",
+              "api/components/depth",
+              "api/components/market-bar"
+            ]
+          },
+          {
+            "group": "Utils",
+            "pages": [
+              "api/utils/chart-manager",
+              "api/utils/websocket-manager",
+              "api/utils/requests"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time order book with WebSocket updates",
+    "Interactive TradingView-style candlestick charts",
+    "Limit and market order placement",
+    "Live market data and recent trades",
+    "Responsive trading interface with swap functionality",
+    "Dark theme optimized for traders"
+  ],
+  "publicApiSurface": [
+    "SwapInterface",
+    "TradeInterface",
+    "Depth",
+    "OrderBook",
+    "RecentTrades",
+    "MarketBar",
+    "ChartManager",
+    "WsManager",
+    "getDepth",
+    "getTrades",
+    "getKlines",
+    "getTicker",
+    "createOrder"
+  ]
+}
